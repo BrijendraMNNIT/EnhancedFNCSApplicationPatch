@@ -134,11 +134,17 @@ CFLAGS="-g -O2" CXXFLAGS="-g -O2" ./waf configure --prefix=$FNCS_INSTALL --with-
 
 After installing all the softwares, we need to set environment variables. These setting can be done through the FNCS_env.sh file. 
 # Description of How FNCS Application Patch Is Enhanced 
-It would be easy to understand by looking the inheritance diagram and the state chart chart diagram. The inheritance diagram of the FNCSApplication class is given below. State chart diagram for the two home instances is depicted. ![Alt text](inheritencediagram1-eps-converted-to-1.png?raw=true "Inheritance diagram before modification")
+It would be easy to understand the modification by looking the inheritance diagram and the state chart diagram. The inheritance diagram of the FNCSApplication class is given below. State chart diagram for the two home instances is depicted. 
+Inheritance diagram before modification ![Alt text](inheritencediagram1-eps-converted-to-1.png?raw=true "Inheritance diagram before modification")
 
+Inheritance diagram after modification ![Alt text](inheritencediagram2-eps-converted-to-1.png?raw=true "Inheritance diagram after modification")
+
+State chart diagram before modification ![Alt text](state1new.png?raw=true "State chart diagram before modification")
+
+State chart diagram after modification ![Alt text](state2new.png?raw=true "State chart diagram after modification")
 # Model Description
 In this current directory, the most files are related to the GridLAB-D simulator. firstN.cc file is ns-3 model file.
-
+Set up of the topology ![Alt text](fig5-1.png?raw=true "Simulation topology")
 
 # GridLAB-D Model
 The GridLAB-D model has six houses. These houses act o the basis of the internal real-time price and their batteries charging and discharging are controlled by an application program. 
@@ -149,13 +155,13 @@ The file firstN.cc creates one more node than the number of houses in the GridLA
 
 # Running the Co-Simulation
 Open three terminals:
-      At first terminal
-          1. source FNCS_env.sh
-          2. ./compile-ns3.sh firstN.cc  
-          3. ./firstN
-      At the second terminal
-          1. source FNCS_env.sh
-          2. gridlabd ./fn
-      At the third terminal
-          1. source FNCS_env.sh
-          2  fncsbroker 2
+      1. At first terminal
+          - source FNCS_env.sh
+          - ./compile-ns3.sh firstN.cc  
+          - ./firstN
+      2. At the second terminal
+          - source FNCS_env.sh
+          - gridlabd ./fn
+      3. At the third terminal
+          - source FNCS_env.sh
+          -  fncsbroker 2
