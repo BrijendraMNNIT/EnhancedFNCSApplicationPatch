@@ -1,0 +1,2692 @@
+#include "water_and_setpoint_schedule_v3.glm";
+
+#include "appliance_schedules.glm";
+
+module generators;
+module powerflow {
+     solver_method NR;
+     NR_iteration_limit 50;
+};
+
+module tape;
+module residential {
+	implicit_enduses NONE;
+};
+
+module climate;
+object csv_reader{
+		name CSVREADER;
+		filename "ColumbusWeather2009_2a.csv";
+		}
+object climate{
+		name "Minneapolis";
+		tmyfile "ColumbusWeather2009_2a.csv";
+		reader CSVREADER;
+		}
+
+
+#ifdef IGNORE
+object climate {
+	name "Yakima";
+	tmyfile "./WA-Yakima.tmy2";
+	interpolate "QUADRATIC";
+	cloud_model "CUMULUS";
+	cloud_opacity 0.50;
+}
+#endif
+module connection;
+clock {
+     timezone PST+8PDT;                   // for 7 dyas
+     starttime '2019-02-21 00:00:00';
+     stoptime '2019-02-28 00:00:00';
+}
+module market;
+object stubauction {
+	name Market_1;
+	period 3600; // in seconds
+	//object player{
+	//file price.player;
+	//property current_market.clearing_price;
+	//};
+	object recorder{
+	property avg24, std24, current_market.clearing_price;
+	interval 3600;
+	file price_statistics_Market_1.csv;
+	};
+    }
+
+object fncs_msg {
+     name house1gld;
+     parent Market_1;
+     option "transport:hostname localhost, port 5570";
+     configure house1gld.txt;
+}
+
+object transformer_configuration {
+     name substation_config;
+     connect_type WYE_WYE;
+     install_type PADMOUNT;
+     primary_voltage 345000 V;
+     secondary_voltage 7200 V;
+     power_rating 3750;
+     powerA_rating 1250;
+     powerB_rating 1250;
+     powerC_rating 1250;
+     impedance 0.0015+0.00675j;
+}
+
+object transformer_configuration {
+     name default_transformer_A;
+     connect_type SINGLE_PHASE_CENTER_TAPPED;
+     install_type PADMOUNT;
+     primary_voltage 7200 V;
+     secondary_voltage 124 V;
+     power_rating 1250;
+     powerA_rating 1250;
+     impedance 0.015+0.0675j;
+}
+
+object transformer_configuration {
+     name default_transformer_B;
+     connect_type SINGLE_PHASE_CENTER_TAPPED;
+     install_type PADMOUNT;
+     primary_voltage 7200 V;
+     secondary_voltage 124 V;
+     power_rating 1250;
+     powerB_rating 1250;
+     impedance 0.015+0.0675j;
+}
+
+object transformer_configuration {
+     name default_transformer_C;
+     connect_type SINGLE_PHASE_CENTER_TAPPED;
+     install_type PADMOUNT;
+     primary_voltage 7200 V;
+     secondary_voltage 124 V;
+     power_rating 1250;
+     powerC_rating 1250;
+     impedance 0.015+0.0675j;
+}
+
+
+object substation {
+     bustype SWING;
+     name ROOT;
+     phases ABCN;
+     reference_phase PHASE_A;
+     positive_sequence_voltage 345000.0+0.0j;
+     nominal_voltage 345000;
+}
+
+object transformer {
+     phases ABCN;
+     name F1_Transformer1;
+     from ROOT;
+     to substation_meter;
+     configuration substation_config;
+     object recorder {
+          property power_out_real;
+          limit 100000000;
+          interval 1; // in seconds
+          file totalload_F1_Transformer1.csv;
+     };
+}
+
+
+object meter {     
+      name substation_meter;     
+      phases ABCN;     
+      nominal_voltage 7216.88;     
+      object recorder {
+     	name substation_recorder;
+     	file substation_data.csv;
+     	interval 1;
+     	property measured_voltage_A, measured_current_A, measured_power_A,measured_voltage_B, measured_current_B, measured_power_B, measured_voltage_C, measured_current_C, measured_power_C;
+	};     
+} 
+
+
+object overhead_line {     
+      name feeder_backbone;     
+      phases ABCN;     
+      from substation_meter;     
+      to load_meter;     
+      length 10000;     
+      configuration line_configuration_1;     
+} 
+
+object line_configuration {     
+      name line_configuration_1;     
+      conductor_A overhead_line_conductor_1;     
+      conductor_B overhead_line_conductor_1;     
+      conductor_C overhead_line_conductor_1;     
+      conductor_N overhead_line_conductor_1;     
+      spacing line_spacing_1;     
+} 
+
+object line_spacing {     
+      name line_spacing_1;     
+      distance_AB 57.6 in;    
+      distance_BC 57.6 in;    
+      distance_AC 57.6 in;    
+      distance_AN 51.6 in;    
+      distance_BN 51.6 in;    
+      distance_CN 51.6 in;    
+}  
+
+object overhead_line_conductor {     
+      name overhead_line_conductor_1;      
+      rating.summer.continuous 256.0;     
+      geometric_mean_radius 0.01200 ft;    
+      resistance 0.1;     
+}  
+
+object meter {     
+      name load_meter;     
+      phases ABCN;     
+      nominal_voltage 7216.88;     
+      object recorder {
+     	name load_recorder;
+     	file load_data.csv;
+     	interval 1;
+     	property measured_voltage_A, measured_current_A, measured_power_A, measured_voltage_B, measured_current_B, measured_power_B, measured_voltage_C, measured_current_C, measured_power_C;
+	};
+} 
+
+object load {
+     parent load_meter;
+     name feeder_load;
+     nominal_voltage 7216.88;
+     phases ABC;
+     constant_power_A_real 10000;  //Volt-Ampere 
+     constant_power_B_real 50000; 
+     constant_power_C_real 49000;
+}
+
+object transformer {
+     name center_tap_transformer_A;
+     phases AS;
+     from substation_meter;
+     to t_m_A;
+     configuration default_transformer_A;
+}
+
+
+object triplex_meter {
+     name t_m_A;
+     phases AS;
+     nominal_voltage 120.00;
+     object recorder {
+     name transformer_recorder;
+     	file t_m_A.csv;
+     	interval 1;
+     	property measured_voltage_1, measured_voltage_2, measured_current_1,measured_current_2, measured_power;
+     };
+   
+}
+
+object triplex_line_conductor {
+     name Name_1_0_AA_triplex;
+     resistance 0.57;
+     geometric_mean_radius 0.0111;
+}
+
+object triplex_line_configuration {
+     name TLCFG;
+     conductor_1 Name_1_0_AA_triplex;
+     conductor_2 Name_1_0_AA_triplex;
+     conductor_N Name_1_0_AA_triplex;
+     insulation_thickness 0.08;
+     diameter 0.368;
+}
+
+object triplex_line {
+     from t_m_A;
+     to t_n_2_m;
+     phases AS;
+     length 1640;
+     configuration TLCFG;
+}
+
+object triplex_meter {
+	name t_n_2_m;
+	phases AS;
+     nominal_voltage 120.00;
+     object recorder {
+     	name load_recorder_t_n_2_m;
+     	file t_n_2_m.csv;
+     	interval 1;
+     	property measured_voltage_1, measured_voltage_2, measured_current_1,measured_current_2, measured_power;
+};
+}
+
+object triplex_line {
+     from t_n_2_m;
+     to t_n_2;
+     phases AS;
+     length 10;
+     configuration TLCFG;
+}
+
+object triplex_node {
+	name t_n_2;
+	phases AS;
+	//voltage_1 120 + 0.0j;
+	//voltage_2 120 + 0.0j;
+	//voltage_N 0;
+	nominal_voltage 120;
+	}
+
+// Node 2 Right T node 1 house
+
+object triplex_line {
+     from t_n_2;
+     to t_n_2_right_tn1;
+     phases AS;
+     length 160;
+     configuration TLCFG;
+}	
+
+object triplex_node {
+	name t_n_2_right_tn1;
+	phases AS;
+	//voltage_1 120 + 0j;		
+	//voltage_2 120 + 0j;
+	//voltage_N 0;
+	nominal_voltage 120;
+	}
+	
+object triplex_line {
+     from t_n_2_right_tn1;
+     to t_n_2_right_tn1_tm1_house;
+     phases AS;
+     length 10;
+     configuration TLCFG;
+}
+
+object triplex_meter {
+     name t_n_2_right_tn1_tm1_house;
+     phases AS;
+     nominal_voltage 120.00;
+     object recorder {
+     	name load_recorder_t_n_2_right_tn1_tm1_house;
+     	file t_n_2_right_tn1_tm1_house.csv;
+     	interval 1;
+     	property measured_voltage_1, measured_voltage_2, measured_current_1,measured_current_2, measured_power;
+};
+}
+
+object triplex_meter {
+     name t_n_2_right_tn1_tm1_house_tm_in_H_B_ESP1;
+     phases AS;
+     nominal_voltage 120.00;
+     parent t_n_2_right_tn1_tm1_house;
+     object recorder {
+     	name load_recorder_t_n_2_right_tn1_tm1_house_tm_in_H_B_ESP1;
+     	file t_n_2_right_tn1_tm1_house_tm_in_H_B_ESP1.csv;
+     	interval 1;
+     	property measured_voltage_1, measured_voltage_2, measured_current_1,measured_current_2, measured_power;
+};
+}
+object inverter {
+      name t_n_2_right_tn1_tm1_house_in_H_B_ESP1;
+      parent t_n_2_right_tn1_tm1_house_tm_in_H_B_ESP1;
+      generator_status 2; //ONLINE;
+      inverter_type FOUR_QUADRANT;
+     four_quadrant_control_mode LOAD_FOLLOWING;
+      sense_object t_n_2_m;      // A node correspond to ESPServer
+      rated_power 3000.0;		//Per phase rating in VA
+      inverter_efficiency .95;
+      charge_on_threshold 100; //50000
+      charge_off_threshold 200; //51000
+      
+      discharge_on_threshold 1000000; // 53000
+      discharge_off_threshold 900000; // 52000
+      //charge_threshold 1.5 kW;
+     // discharge_threshold 2.5 kW;
+      
+      max_discharge_rate 3 kW;
+      max_charge_rate 3 kW;
+      charge_lockout_time 1;
+      discharge_lockout_time 1;
+      
+      object recorder {
+     	name load_recorder_t_n_2_right_tn1_tm1_house_in_H_B_ESP1;
+     	file t_n_2_right_tn1_tm1_house_in_H_B_ESP1.csv;
+     	interval 1;
+     	property sense_object, VA_Out, VA_In, charge_on_threshold, charge_off_threshold, discharge_off_threshold, discharge_on_threshold, generator_status;
+	};
+}
+
+
+
+
+object battery {
+	name t_n_2_right_tn1_tm1_house_H_B_ESP1;
+	parent t_n_2_right_tn1_tm1_house_in_H_B_ESP1;
+	use_internal_battery_model TRUE;
+	battery_type LI_ION;
+	rated_power 3 kW;
+	nominal_voltage 120;
+	battery_capacity 10 kWh;
+	round_trip_efficiency 0.81;
+	state_of_charge 0.0;
+	generator_mode SUPPLY_DRIVEN;
+	//battery_state 2;
+	object recorder {
+     	name load_recorder_t_n_2_right_tn1_tm1_house_H_B_ESP1;
+     	file t_n_2_right_tn1_tm1_house_H_B_ESP1.csv;
+     	interval 1;
+     	property state_of_charge, battery_state;
+	};
+	
+}
+
+object triplex_meter {
+     name t_n_2_right_tn1_tm1_house_tm_in_H_B;
+     phases AS;
+     nominal_voltage 120.00;
+     parent t_n_2_right_tn1_tm1_house;
+     object recorder {
+     	name load_recorder_t_n_2_right_tn1_tm1_house_tm_in_H_B;
+     	file t_n_2_right_tn1_tm1_house_tm_in_H_B.csv;
+     	interval 1;
+     	property measured_voltage_1, measured_voltage_2, measured_current_1,measured_current_2, measured_power;
+};
+}
+
+
+object inverter {
+      name t_n_2_right_tn1_tm1_house_in_H_B;
+      parent t_n_2_right_tn1_tm1_house_tm_in_H_B;
+      generator_status ONLINE;
+      inverter_type FOUR_QUADRANT;
+     four_quadrant_control_mode LOAD_FOLLOWING;
+      sense_object t_n_2_right_tn1_tm1_house_Home;
+      rated_power 3000.0;		//Per phase rating in VA
+      inverter_efficiency .95;
+      charge_on_threshold 1500; //1.5
+      charge_off_threshold 1700; //1.7
+      discharge_off_threshold 2000; // 2
+      discharge_on_threshold 3000; // 3
+      //charge_threshold 1.5 kW;
+     // discharge_threshold 2.5 kW;
+      
+      max_discharge_rate 3 kW;
+      max_charge_rate 3 kW;
+      charge_lockout_time 1;
+      discharge_lockout_time 1;
+      
+      object recorder {
+     	name load_recorder_t_n_2_right_tn1_tm1_house_in_H_B;
+     	file t_n_2_right_tn1_tm1_house_in_H_B.csv;
+     	interval 1;
+     	property sense_object, VA_Out, VA_In, charge_on_threshold, charge_off_threshold, discharge_off_threshold, discharge_on_threshold;
+	};
+}
+
+object battery {
+	name t_n_2_right_tn1_tm1_house_H_B;
+	parent t_n_2_right_tn1_tm1_house_in_H_B;
+	use_internal_battery_model TRUE;
+	battery_type LI_ION;
+	rated_power 3 kW;
+	nominal_voltage 120;
+	battery_capacity 10 kWh;
+	round_trip_efficiency 0.81;
+	state_of_charge 0.1;
+	generator_mode SUPPLY_DRIVEN;
+	//battery_state 2;
+	object recorder {
+     	name load_recorder_t_n_2_right_tn1_tm1_house_H_B;
+     	file t_n_2_right_tn1_tm1_house_H_B.csv;
+     	interval 1;
+     	property state_of_charge, battery_state;
+	};
+	
+}
+
+
+object triplex_meter {
+     name t_n_2_right_tn1_tm1_house_tm_in_H_S;
+     phases AS;
+     nominal_voltage 120.00;
+     parent t_n_2_right_tn1_tm1_house;
+     object recorder {
+     	name load_recorder_t_n_2_right_tn1_tm1_house_tm_in_H_S;
+     	file t_n_2_right_tn1_tm1_house_tm_in_H_S.csv;
+     	interval 1;
+     	property measured_voltage_1, measured_voltage_2, measured_current_1,measured_current_2, measured_power;
+};
+}
+
+object inverter {
+	name t_n_2_right_tn1_tm1_house_in_H_S;
+	phases AS;
+	parent t_n_2_right_tn1_tm1_house_tm_in_H_S;
+	generator_status ONLINE;
+	inverter_type PWM;
+	//generator_mode SUPPLY_DRIVEN;
+	rated_power 2500000;
+	object recorder {
+	property phaseA_V_Out, V_In, I_In, VA_Out; 
+	file t_n_2_right_tn1_tm1_house_in_H_S.csv;
+	interval 1;
+	limit 6000000;
+	};
+}
+object solar {
+	name t_n_2_right_tn1_tm1_house_H_S;
+	phases AS;
+	parent t_n_2_right_tn1_tm1_house_in_H_S;
+	//weather "Yakima";
+	generator_status ONLINE;
+	generator_mode SUPPLY_DRIVEN;
+	area 567.04 ft^2; //141.76 ft^2;
+	tilt_angle 90.0;
+	efficiency 0.05;
+	orientation_azimuth 180; //equator-facing (South)
+	orientation DEFAULT;
+	SOLAR_TILT_MODEL SOLPOS;
+	SOLAR_POWER_MODEL FLATPLATE;
+	latitude 21.31236;
+	longitude -158.08463;
+	object recorder {
+	property VA_Out.real, V_Out, Insolation, area;
+	file t_n_2_right_tn1_tm1_house_H_S.csv;
+	interval 1;
+	limit 6000000;
+	};
+}
+
+
+object triplex_meter{
+	name t_n_2_right_tn1_tm1_house_Home;
+	parent t_n_2_right_tn1_tm1_house;
+	phases AS;
+    	 nominal_voltage 120.00;
+     	object recorder {
+     	name home_load_recorder_t_n_2_right_tn1_tm1_house_Home;
+     	file t_n_2_right_tn1_tm1_house_Home.csv;
+     	interval 1;
+     	property measured_voltage_1, measured_voltage_2, measured_current_1,measured_current_2, measured_power;
+};
+}
+
+
+object house {
+     parent t_n_2_right_tn1_tm1_house_Home;
+     name t_n_2_right_tn1_tm1_house_Home_1;
+    
+               
+     schedule_skew -685; // Seconds
+     floor_area 2100; //sq. ft
+     number_of_stories 1;
+     heating_system_type GAS;
+     cooling_system_type ELECTRIC;
+     thermal_integrity_level NORMAL;
+     motor_efficiency AVERAGE;
+    // cooling_setpoint 72;
+     heating_setpoint heating7*0.985+2.01;
+     groupid Home_Type_1;
+     
+ 
+     airchange_per_hour 0.80;
+     hvac_power_factor 0.97; 
+     fan_type ONE_SPEED;
+     hvac_breaker_rating 200;
+     total_thermal_mass_per_floor_area 3.01;
+     motor_model BASIC;
+     cooling_COP 3.90;
+     
+     number_of_doors 2;
+     air_temperature 71.9; //degF indoor air temperature
+     mass_temperature 71.9; // Interior mass temperature
+     
+     object passive_controller{
+     	name t_n_2_right_tn1_tm1_house_Home_1_hvac;
+     	period 3600;
+     	
+     	base_setpoint cooling2*0.996+4.51;
+     	control_mode RAMP;
+     	sensitivity 1;
+     	expectation_obj Market_1;
+     	expectation_prop avg24;
+     	setpoint_prop cooling_setpoint;
+     	state_prop override;
+     	
+     	observation_obj Market_1;
+     	observation_prop current_market.clearing_price;
+     	mean_observation_prop avg24;
+     	stdev_observation_prop std24;
+     	range_low -1.500;
+     	range_high 2.500;
+     	ramp_low 1.333;
+     	ramp_high 0.800;
+     	object recorder{
+     		file t_n_2_right_tn1_tm1_house_Home_1_hvac.csv;
+     		interval 1;
+     		property output_state,prob_off,observation, mean_observation,stdev_observation, comfort_level;
+     		};
+     	
+     	};
+     
+      object waterheater{
+	 object passive_controller {
+		name t_n_2_right_tn1_tm1_house_Home_1_waterheater;
+		period 3600;
+		control_mode PROBABILITY_OFF;
+		expectation_object Market_1;
+		expectation_prop avg24;
+		setpoint_prop tank_setpoint;
+		state_prop override;
+		comfort_level 0.82;
+		observation_obj Market_1;
+		observation_property current_market.clearing_price;
+		mean_observation_prop avg24;
+		stdev_observation_prop std24;
+		object recorder{
+			file t_n_2_right_tn1_tm1_house_Home_1_waterheater.csv;
+			interval 1;
+			property output_state,prob_off,observation, mean_observation,stdev_observation, comfort_level;
+		};
+	};
+     };
+     
+
+object ZIPload {
+          schedule_skew -685;
+          base_power LIGHTS*0.8709;
+          power_fraction 0.000000;
+          impedance_fraction 1.000000;
+          current_fraction 0.000000;
+          power_pf 0.000;
+          current_pf 0.000;
+          impedance_pf 1.000;
+          heat_fraction 0.70;
+     };
+     object ZIPload {
+          schedule_skew -685;
+          base_power CLOTHESWASHER*0.7763;
+          power_fraction 1.000000;
+          impedance_fraction 0.000000;
+          current_fraction 0.000000;
+          power_pf 0.970;
+          current_pf 0.970;
+          impedance_pf 0.970;
+          heat_fraction 0.86;
+     };
+     object ZIPload {
+          schedule_skew -685;
+          base_power REFRIGERATOR*1.0019;
+          power_fraction 1.000000;
+          impedance_fraction 0.000000;
+          current_fraction 0.000000;
+          power_pf 0.970;
+          current_pf 0.970;
+          impedance_pf 0.970;
+          heat_fraction 0.77;
+     };
+     object ZIPload {
+          schedule_skew -685;
+          base_power DRYER*0.9110;
+          power_fraction 0.100000;
+          impedance_fraction 0.800000;
+          current_fraction 0.100000;
+          power_pf 0.900;
+          current_pf 0.900;
+          impedance_pf 1.000;
+          heat_fraction 0.80;
+     };
+     object ZIPload {
+          schedule_skew -685;
+          base_power FREEZER*1.0590;
+          power_fraction 1.000000;
+          impedance_fraction 0.000000;
+          current_fraction 0.000000;
+          power_pf 0.970;
+          current_pf 0.970;
+          impedance_pf 0.970;
+          heat_fraction 0.86;
+     };
+     object ZIPload {
+          schedule_skew -685;
+          base_power RANGE*0.6381;
+          power_fraction 0.000000;
+          impedance_fraction 1.000000;
+          current_fraction 0.000000;
+          power_pf 0.000;
+          current_pf 0.000;
+          impedance_pf 1.000;
+          heat_fraction 0.94;
+     };
+     object ZIPload {
+          schedule_skew -685;
+          base_power MICROWAVE*1.0063;
+          power_fraction 1.000000;
+          impedance_fraction 0.000000;
+          current_fraction 0.000000;
+          power_pf 0.970;
+          current_pf 0.970;
+          impedance_pf 0.970;
+          heat_fraction 0.67;
+     };
+    
+}
+
+
+// Node 2 Right T node 2 house
+
+object triplex_line {
+     from t_n_2_right_tn1;
+     to t_n_2_right_tn2;
+     phases AS;
+     length 160;
+     configuration TLCFG;
+}	
+
+object triplex_node {
+	name t_n_2_right_tn2;
+	phases AS;
+	//voltage_1 120 + 0j;		
+	//voltage_2 120 + 0j;
+	//voltage_N 0;
+	nominal_voltage 120;
+	}
+	
+object triplex_line {
+     from t_n_2_right_tn2;
+     to t_n_2_right_tn2_tm1_house;
+     phases AS;
+     length 10;
+     configuration TLCFG;
+}
+
+object triplex_meter {
+     name t_n_2_right_tn2_tm1_house;
+     phases AS;
+     nominal_voltage 120.00;
+     object recorder {
+     	name load_recorder_t_n_2_right_tn2_tm1_house;
+     	file t_n_2_right_tn2_tm1_house.csv;
+     	interval 1;
+     	property measured_voltage_1, measured_voltage_2, measured_current_1,measured_current_2, measured_power;
+};
+}
+
+object triplex_meter {
+     name t_n_2_right_tn2_tm1_house_tm_in_H_B_ESP2;
+     phases AS;
+     nominal_voltage 120.00;
+     parent t_n_2_right_tn2_tm1_house;
+     object recorder {
+     	name load_recorder_t_n_2_right_tn2_tm1_house_tm_in_H_B_ESP2;
+     	file t_n_2_right_tn2_tm1_house_tm_in_H_B_ESP2.csv;
+     	interval 1;
+     	property measured_voltage_1, measured_voltage_2, measured_current_1,measured_current_2, measured_power;
+};
+}
+object inverter {
+      name t_n_2_right_tn2_tm1_house_in_H_B_ESP2;
+      parent t_n_2_right_tn2_tm1_house_tm_in_H_B_ESP2;
+      generator_status ONLINE;
+      inverter_type FOUR_QUADRANT;
+     four_quadrant_control_mode LOAD_FOLLOWING;
+      sense_object t_n_2_m;
+      rated_power 3000.0;		//Per phase rating in VA
+      inverter_efficiency .95;
+      charge_on_threshold 100; //1.5
+      charge_off_threshold 200; //1.7
+      discharge_off_threshold 900000; // 2
+      discharge_on_threshold 1000000; // 3
+      //charge_threshold 1.5 kW;
+     // discharge_threshold 2.5 kW;
+      
+      max_discharge_rate 3 kW;
+      max_charge_rate 3 kW;
+      charge_lockout_time 1;
+      discharge_lockout_time 1;
+      
+      object recorder {
+     	name load_recorder_t_n_2_right_tn2_tm1_house_in_H_B_ESP2;
+     	file t_n_2_right_tn2_tm1_house_in_H_B_ESP2.csv;
+     	interval 1;
+     	property sense_object, VA_Out, VA_In, charge_on_threshold, charge_off_threshold, discharge_off_threshold, discharge_on_threshold, generator_status;
+	};
+}
+
+
+
+
+object battery {
+	name t_n_2_right_tn2_tm1_house_H_B_ESP2;
+	parent t_n_2_right_tn2_tm1_house_in_H_B_ESP2;
+	use_internal_battery_model TRUE;
+	battery_type LI_ION;
+	rated_power 3 kW;
+	nominal_voltage 120;
+	battery_capacity 10 kWh;
+	round_trip_efficiency 0.81;
+	state_of_charge 0.0;
+	generator_mode SUPPLY_DRIVEN;
+	//battery_state 2;
+	object recorder {
+     	name load_recorder_t_n_2_right_tn2_tm1_house_H_B_ESP2;
+     	file t_n_2_right_tn2_tm1_house_H_B_ESP2.csv;
+     	interval 1;
+     	property state_of_charge, battery_state;
+	};
+	
+}
+
+object triplex_meter {
+     name t_n_2_right_tn2_tm1_house_tm_in_H_B;
+     phases AS;
+     nominal_voltage 120.00;
+     parent t_n_2_right_tn2_tm1_house;
+     object recorder {
+     	name load_recorder_t_n_2_right_tn2_tm1_house_tm_in_H_B;
+     	file t_n_2_right_tn2_tm1_house_tm_in_H_B.csv;
+     	interval 1;
+     	property measured_voltage_1, measured_voltage_2, measured_current_1,measured_current_2, measured_power;
+};
+}
+
+
+object inverter {
+      name t_n_2_right_tn2_tm1_house_in_H_B;
+      parent t_n_2_right_tn2_tm1_house_tm_in_H_B;
+      generator_status ONLINE;
+      inverter_type FOUR_QUADRANT;
+     four_quadrant_control_mode LOAD_FOLLOWING;
+      sense_object t_n_2_right_tn2_tm1_house_Home;
+      rated_power 3000.0;		//Per phase rating in VA
+      inverter_efficiency .95;
+      charge_on_threshold 1500; //1.5
+      charge_off_threshold 1700; //1.7
+      discharge_off_threshold 2000; // 2
+      discharge_on_threshold 3000; // 3
+      //charge_threshold 1.5 kW;
+     // discharge_threshold 2.5 kW;
+      
+      max_discharge_rate 3 kW;
+      max_charge_rate 3 kW;
+      charge_lockout_time 1;
+      discharge_lockout_time 1;
+      
+      object recorder {
+     	name load_recorder_t_n_2_right_tn2_tm1_house_in_H_B;
+     	file t_n_2_right_tn2_tm1_house_in_H_B.csv;
+     	interval 1;
+     	property sense_object, VA_Out, VA_In, charge_on_threshold, charge_off_threshold, discharge_off_threshold, discharge_on_threshold;
+	};
+}
+
+object battery {
+	name t_n_2_right_tn2_tm1_house_H_B;
+	parent t_n_2_right_tn2_tm1_house_in_H_B;
+	use_internal_battery_model TRUE;
+	battery_type LI_ION;
+	rated_power 3 kW;
+	nominal_voltage 120;
+	battery_capacity 10 kWh;
+	round_trip_efficiency 0.81;
+	state_of_charge 0.3;
+	generator_mode SUPPLY_DRIVEN;
+	//battery_state 2;
+	object recorder {
+     	name load_recorder_t_n_2_right_tn2_tm1_house_H_B;
+     	file t_n_2_right_tn2_tm1_house_H_B.csv;
+     	interval 1;
+     	property state_of_charge, battery_state;
+	};
+	
+}
+
+
+object triplex_meter {
+     name t_n_2_right_tn2_tm1_house_tm_in_H_S;
+     phases AS;
+     nominal_voltage 120.00;
+     parent t_n_2_right_tn2_tm1_house;
+     object recorder {
+     	name load_recorder_t_n_2_right_tn2_tm1_house_tm_in_H_S;
+     	file t_n_2_right_tn2_tm1_house_tm_in_H_S.csv;
+     	interval 1;
+     	property measured_voltage_1, measured_voltage_2, measured_current_1,measured_current_2, measured_power;
+};
+}
+
+object inverter {
+	name t_n_2_right_tn2_tm1_house_in_H_S;
+	phases AS;
+	parent t_n_2_right_tn2_tm1_house_tm_in_H_S;
+	generator_status ONLINE;
+	inverter_type PWM;
+	//generator_mode SUPPLY_DRIVEN;
+	rated_power 2500000;
+	object recorder {
+	property phaseA_V_Out, V_In, I_In, VA_Out; 
+	file t_n_2_right_tn2_tm1_house_in_H_S.csv;
+	interval 1;
+	limit 6000000;
+	};
+}
+object solar {
+	name t_n_2_right_tn2_tm1_house_H_S;
+	phases AS;
+	parent t_n_2_right_tn2_tm1_house_in_H_S;
+	//weather "Yakima";
+	generator_status ONLINE;
+	generator_mode SUPPLY_DRIVEN;
+	area 850.56 ft^2;
+	tilt_angle 90.0;
+	efficiency 0.05;
+	orientation_azimuth 180; //equator-facing (South)
+	orientation DEFAULT;
+	SOLAR_TILT_MODEL SOLPOS;
+	SOLAR_POWER_MODEL FLATPLATE;
+	latitude 21.31236;
+	longitude -158.08463;
+	object recorder {
+	property VA_Out.real, V_Out, Insolation, area;
+	file t_n_2_right_tn2_tm1_house_H_S.csv;
+	interval 1;
+	limit 6000000;
+	};
+}
+
+
+object triplex_meter{
+	name t_n_2_right_tn2_tm1_house_Home;
+	parent t_n_2_right_tn2_tm1_house;
+	phases AS;
+    	 nominal_voltage 120.00;
+     	object recorder {
+     	name home_load_recorder_t_n_2_right_tn2_tm1_house_Home;
+     	file t_n_2_right_tn2_tm1_house_Home.csv;
+     	interval 1;
+     	property measured_voltage_1, measured_voltage_2, measured_current_1,measured_current_2, measured_power;
+};
+}
+
+
+object house {
+     parent t_n_2_right_tn2_tm1_house_Home;
+     name t_n_2_right_tn2_tm1_house_Home_1;
+     //Residential_2
+     
+     
+     
+     schedule_skew +685; // Seconds
+     floor_area 2100; //sq. ft
+     number_of_stories 1;
+     heating_system_type GAS;
+     cooling_system_type ELECTRIC;
+     thermal_integrity_level NORMAL;
+     motor_efficiency AVERAGE;
+    // cooling_setpoint 72;
+     heating_setpoint heating7*0.985+2.01;
+     groupid Home_Type_1;
+     
+ 
+     airchange_per_hour 0.80;
+     hvac_power_factor 0.97; 
+     fan_type ONE_SPEED;
+     hvac_breaker_rating 200;
+     total_thermal_mass_per_floor_area 3.01;
+     motor_model BASIC;
+     cooling_COP 3.90;
+     
+     number_of_doors 2;
+     air_temperature 71.9; //degF indoor air temperature
+     mass_temperature 71.9; // Interior mass temperature
+     
+     object passive_controller{
+     	name t_n_2_right_tn2_tm1_house_Home_1_hvac;
+     	period 3600;
+     	
+     	base_setpoint cooling2*0.996+4.51;
+     	control_mode RAMP;
+     	sensitivity 1;
+     	expectation_obj Market_1;
+     	expectation_prop avg24;
+     	setpoint_prop cooling_setpoint;
+     	state_prop override;
+     	
+     	observation_obj Market_1;
+     	observation_prop current_market.clearing_price;
+     	mean_observation_prop avg24;
+     	stdev_observation_prop std24;
+     	range_low -1.500;
+     	range_high 2.500;
+     	ramp_low 1.333;
+     	ramp_high 0.800;
+     	object recorder{
+     		file t_n_2_right_tn2_tm1_house_Home_1_hvac.csv;
+     		interval 1;
+     		property output_state,prob_off,observation, mean_observation,stdev_observation, comfort_level;
+     		};
+     	
+     	};
+     
+      object waterheater{
+	 object passive_controller {
+		name t_n_2_right_tn2_tm1_house_Home_1_waterheater;
+		period 3600;
+		control_mode PROBABILITY_OFF;
+		expectation_object Market_1;
+		expectation_prop avg24;
+		setpoint_prop tank_setpoint;
+		state_prop override;
+		comfort_level 0.82;
+		observation_obj Market_1;
+		observation_property current_market.clearing_price;
+		mean_observation_prop avg24;
+		stdev_observation_prop std24;
+		object recorder{
+			file t_n_2_right_tn2_tm1_house_Home_1_waterheater.csv;
+			interval 1;
+			property output_state,prob_off,observation, mean_observation,stdev_observation, comfort_level;
+		};
+	};
+     };
+     
+
+object ZIPload {
+          schedule_skew +685;
+          base_power LIGHTS*0.8709;
+          power_fraction 0.000000;
+          impedance_fraction 1.000000;
+          current_fraction 0.000000;
+          power_pf 0.000;
+          current_pf 0.000;
+          impedance_pf 1.000;
+          heat_fraction 0.70;
+     };
+     object ZIPload {
+          schedule_skew +685;
+          base_power CLOTHESWASHER*0.7763;
+          power_fraction 1.000000;
+          impedance_fraction 0.000000;
+          current_fraction 0.000000;
+          power_pf 0.970;
+          current_pf 0.970;
+          impedance_pf 0.970;
+          heat_fraction 0.86;
+     };
+     object ZIPload {
+          schedule_skew +685;
+          base_power REFRIGERATOR*1.0019;
+          power_fraction 1.000000;
+          impedance_fraction 0.000000;
+          current_fraction 0.000000;
+          power_pf 0.970;
+          current_pf 0.970;
+          impedance_pf 0.970;
+          heat_fraction 0.77;
+     };
+     object ZIPload {
+          schedule_skew +685;
+          base_power DRYER*0.9110;
+          power_fraction 0.100000;
+          impedance_fraction 0.800000;
+          current_fraction 0.100000;
+          power_pf 0.900;
+          current_pf 0.900;
+          impedance_pf 1.000;
+          heat_fraction 0.80;
+     };
+     object ZIPload {
+          schedule_skew +685;
+          base_power FREEZER*1.0590;
+          power_fraction 1.000000;
+          impedance_fraction 0.000000;
+          current_fraction 0.000000;
+          power_pf 0.970;
+          current_pf 0.970;
+          impedance_pf 0.970;
+          heat_fraction 0.86;
+     };
+     object ZIPload {
+          schedule_skew +685;
+          base_power RANGE*0.6381;
+          power_fraction 0.000000;
+          impedance_fraction 1.000000;
+          current_fraction 0.000000;
+          power_pf 0.000;
+          current_pf 0.000;
+          impedance_pf 1.000;
+          heat_fraction 0.94;
+     };
+     object ZIPload {
+          schedule_skew +685;
+          base_power MICROWAVE*1.0063;
+          power_fraction 1.000000;
+          impedance_fraction 0.000000;
+          current_fraction 0.000000;
+          power_pf 0.970;
+          current_pf 0.970;
+          impedance_pf 0.970;
+          heat_fraction 0.67;
+     };
+    
+}
+
+// Node 2 Right T node 3 house
+
+object triplex_line {
+     from t_n_2_right_tn2;
+     to t_n_2_right_tn3;
+     phases AS;
+     length 160;
+     configuration TLCFG;
+}	
+
+object triplex_node {
+	name t_n_2_right_tn3;
+	phases AS;
+	//voltage_1 120 + 0j;		
+	//voltage_2 120 + 0j;
+	//voltage_N 0;
+	nominal_voltage 120;
+	}
+	
+object triplex_line {
+     from t_n_2_right_tn3;
+     to t_n_2_right_tn3_tm1_house;
+     phases AS;
+     length 10;
+     configuration TLCFG;
+}
+
+object triplex_meter {
+     name t_n_2_right_tn3_tm1_house;
+     phases AS;
+     nominal_voltage 120.00;
+     object recorder {
+     	name load_recorder_t_n_2_right_tn3_tm1_house;
+     	file t_n_2_right_tn3_tm1_house.csv;
+     	interval 1;
+     	property measured_voltage_1, measured_voltage_2, measured_current_1,measured_current_2, measured_power;
+};
+}
+
+object triplex_meter {
+     name t_n_2_right_tn3_tm1_house_tm_in_H_B_ESP3;
+     phases AS;
+     nominal_voltage 120.00;
+     parent t_n_2_right_tn3_tm1_house;
+     object recorder {
+     	name load_recorder_t_n_2_right_tn3_tm1_house_tm_in_H_B_ESP3;
+     	file t_n_2_right_tn3_tm1_house_tm_in_H_B_ESP3.csv;
+     	interval 1;
+     	property measured_voltage_1, measured_voltage_2, measured_current_1,measured_current_2, measured_power;
+};
+}
+object inverter {
+      name t_n_2_right_tn3_tm1_house_in_H_B_ESP3;
+      parent t_n_2_right_tn3_tm1_house_tm_in_H_B_ESP3;
+      generator_status ONLINE;
+      inverter_type FOUR_QUADRANT;
+     four_quadrant_control_mode LOAD_FOLLOWING;
+      sense_object t_n_2_m;
+      rated_power 3000.0;		//Per phase rating in VA
+      inverter_efficiency .95;
+      charge_on_threshold 100; //1.5
+      charge_off_threshold 200; //1.7
+      discharge_off_threshold 900000; // 2
+      discharge_on_threshold 1000000; // 3
+      //charge_threshold 1.5 kW;
+     // discharge_threshold 2.5 kW;
+      
+      max_discharge_rate 3 kW;
+      max_charge_rate 3 kW;
+      charge_lockout_time 1;
+      discharge_lockout_time 1;
+      
+      object recorder {
+     	name load_recorder_t_n_2_right_tn3_tm1_house_in_H_B_ESP3;
+     	file t_n_2_right_tn3_tm1_house_in_H_B_ESP3.csv;
+     	interval 1;
+     	property sense_object, VA_Out, VA_In, charge_on_threshold, charge_off_threshold, discharge_off_threshold, discharge_on_threshold;
+	};
+}
+
+
+
+
+object battery {
+	name t_n_2_right_tn3_tm1_house_H_B_ESP3;
+	parent t_n_2_right_tn3_tm1_house_in_H_B_ESP3;
+	use_internal_battery_model TRUE;
+	battery_type LI_ION;
+	rated_power 3 kW;
+	nominal_voltage 120;
+	battery_capacity 10 kWh;
+	round_trip_efficiency 0.81;
+	state_of_charge 0.0;
+	generator_mode SUPPLY_DRIVEN;
+	//battery_state 2;
+	object recorder {
+     	name load_recorder_t_n_2_right_tn3_tm1_house_H_B_ESP3;
+     	file t_n_2_right_tn3_tm1_house_H_B_ESP3.csv;
+     	interval 1;
+     	property state_of_charge, battery_state;
+	};
+	
+}
+
+object triplex_meter {
+     name t_n_2_right_tn3_tm1_house_tm_in_H_B;
+     phases AS;
+     nominal_voltage 120.00;
+     parent t_n_2_right_tn3_tm1_house;
+     object recorder {
+     	name load_recorder_t_n_2_right_tn3_tm1_house_tm_in_H_B;
+     	file t_n_2_right_tn3_tm1_house_tm_in_H_B.csv;
+     	interval 1;
+     	property measured_voltage_1, measured_voltage_2, measured_current_1,measured_current_2, measured_power;
+};
+}
+
+
+object inverter {
+      name t_n_2_right_tn3_tm1_house_in_H_B;
+      parent t_n_2_right_tn3_tm1_house_tm_in_H_B;
+      generator_status ONLINE;
+      inverter_type FOUR_QUADRANT;
+     four_quadrant_control_mode LOAD_FOLLOWING;
+      sense_object t_n_2_right_tn3_tm1_house_Home;
+      rated_power 3000.0;		//Per phase rating in VA
+      inverter_efficiency .95;
+      charge_on_threshold 1500; //1.5
+      charge_off_threshold 1700; //1.7
+      discharge_off_threshold 2000; // 2
+      discharge_on_threshold 3000; // 3
+      //charge_threshold 1.5 kW;
+     // discharge_threshold 2.5 kW;
+      
+      max_discharge_rate 3 kW;
+      max_charge_rate 3 kW;
+      charge_lockout_time 1;
+      discharge_lockout_time 1;
+      
+      object recorder {
+     	name load_recorder_t_n_2_right_tn3_tm1_house_in_H_B;
+     	file t_n_2_right_tn3_tm1_house_in_H_B.csv;
+     	interval 1;
+     	property sense_object, VA_Out, VA_In, charge_on_threshold, charge_off_threshold, discharge_off_threshold, discharge_on_threshold;
+	};
+}
+
+object battery {
+	name t_n_2_right_tn3_tm1_house_H_B;
+	parent t_n_2_right_tn3_tm1_house_in_H_B;
+	use_internal_battery_model TRUE;
+	battery_type LI_ION;
+	rated_power 3 kW;
+	nominal_voltage 120;
+	battery_capacity 10 kWh;
+	round_trip_efficiency 0.81;
+	state_of_charge 0.2;
+	generator_mode SUPPLY_DRIVEN;
+	//battery_state 2;
+	object recorder {
+     	name load_recorder_t_n_2_right_tn3_tm1_house_H_B;
+     	file t_n_2_right_tn3_tm1_house_H_B.csv;
+     	interval 1;
+     	property state_of_charge, battery_state;
+	};
+	
+}
+
+
+object triplex_meter {
+     name t_n_2_right_tn3_tm1_house_tm_in_H_S;
+     phases AS;
+     nominal_voltage 120.00;
+     parent t_n_2_right_tn3_tm1_house;
+     object recorder {
+     	name load_recorder_t_n_2_right_tn3_tm1_house_tm_in_H_S;
+     	file t_n_2_right_tn3_tm1_house_tm_in_H_S.csv;
+     	interval 1;
+     	property measured_voltage_1, measured_voltage_2, measured_current_1,measured_current_2, measured_power;
+};
+}
+
+object inverter {
+	name t_n_2_right_tn3_tm1_house_in_H_S;
+	phases AS;
+	parent t_n_2_right_tn3_tm1_house_tm_in_H_S;
+	generator_status ONLINE;
+	inverter_type PWM;
+	//generator_mode SUPPLY_DRIVEN;
+	rated_power 2500000;
+	object recorder {
+	property phaseA_V_Out, V_In, I_In, VA_Out; 
+	file t_n_2_right_tn3_tm1_house_in_H_S.csv;
+	interval 1;
+	limit 6000000;
+	};
+}
+object solar {
+	name t_n_2_right_tn3_tm1_house_H_S;
+	phases AS;
+	parent t_n_2_right_tn3_tm1_house_in_H_S;
+	//weather "Yakima";
+	generator_status ONLINE;
+	generator_mode SUPPLY_DRIVEN;
+	area 708.8 ft^2;
+	tilt_angle 90.0;
+	efficiency 0.05;
+	orientation_azimuth 180; //equator-facing (South)
+	orientation DEFAULT;
+	SOLAR_TILT_MODEL SOLPOS;
+	SOLAR_POWER_MODEL FLATPLATE;
+	latitude 21.31236;
+	longitude -158.08463;
+	object recorder {
+	property VA_Out.real, V_Out, Insolation, area;
+	file t_n_2_right_tn3_tm1_house_H_S.csv;
+	interval 1;
+	limit 6000000;
+	};
+}
+
+
+object triplex_meter{
+	name t_n_2_right_tn3_tm1_house_Home;
+	parent t_n_2_right_tn3_tm1_house;
+	phases AS;
+    	 nominal_voltage 120.00;
+     	object recorder {
+     	name home_load_recorder_t_n_2_right_tn3_tm1_house_Home;
+     	file t_n_2_right_tn3_tm1_house_Home.csv;
+     	interval 1;
+     	property measured_voltage_1, measured_voltage_2, measured_current_1,measured_current_2, measured_power;
+};
+}
+
+
+object house {
+     parent t_n_2_right_tn3_tm1_house_Home;
+     name t_n_2_right_tn3_tm1_house_Home_1;
+     //Residential_2
+     
+     
+     
+     schedule_skew +1370; // Seconds
+     floor_area 2100; //sq. ft
+     number_of_stories 1;
+     heating_system_type GAS;
+     cooling_system_type ELECTRIC;
+     thermal_integrity_level NORMAL;
+     motor_efficiency AVERAGE;
+    // cooling_setpoint 72;
+     heating_setpoint heating7*0.985+2.01;
+     groupid Home_Type_1;
+     
+ 
+     airchange_per_hour 0.80;
+     hvac_power_factor 0.97; 
+     fan_type ONE_SPEED;
+     hvac_breaker_rating 200;
+     total_thermal_mass_per_floor_area 3.01;
+     motor_model BASIC;
+     cooling_COP 3.90;
+     
+     number_of_doors 2;
+     air_temperature 71.9; //degF indoor air temperature
+     mass_temperature 71.9; // Interior mass temperature
+     
+     object passive_controller{
+     	name t_n_2_right_tn3_tm1_house_Home_1_hvac;
+     	period 3600;
+     	
+     	base_setpoint cooling2*0.996+4.51;
+     	control_mode RAMP;
+     	sensitivity 1;
+     	expectation_obj Market_1;
+     	expectation_prop avg24;
+     	setpoint_prop cooling_setpoint;
+     	state_prop override;
+     	
+     	observation_obj Market_1;
+     	observation_prop current_market.clearing_price;
+     	mean_observation_prop avg24;
+     	stdev_observation_prop std24;
+     	range_low -1.500;
+     	range_high 2.500;
+     	ramp_low 1.333;
+     	ramp_high 0.800;
+     	object recorder{
+     		file t_n_2_right_tn3_tm1_house_Home_1_hvac.csv;
+     		interval 1;
+     		property output_state,prob_off,observation, mean_observation,stdev_observation, comfort_level;
+     		};
+     	
+     	};
+     
+      object waterheater{
+	 object passive_controller {
+		name t_n_2_right_tn3_tm1_house_Home_1_waterheater;
+		period 3600;
+		control_mode PROBABILITY_OFF;
+		expectation_object Market_1;
+		expectation_prop avg24;
+		setpoint_prop tank_setpoint;
+		state_prop override;
+		comfort_level 0.82;
+		observation_obj Market_1;
+		observation_property current_market.clearing_price;
+		mean_observation_prop avg24;
+		stdev_observation_prop std24;
+		object recorder{
+			file t_n_2_right_tn3_tm1_house_Home_1_waterheater.csv;
+			interval 1;
+			property output_state,prob_off,observation, mean_observation,stdev_observation, comfort_level;
+		};
+	};
+     };
+     
+
+object ZIPload {
+          schedule_skew +1370;
+          base_power LIGHTS*0.8709;
+          power_fraction 0.000000;
+          impedance_fraction 1.000000;
+          current_fraction 0.000000;
+          power_pf 0.000;
+          current_pf 0.000;
+          impedance_pf 1.000;
+          heat_fraction 0.70;
+     };
+     object ZIPload {
+          schedule_skew +1370;
+          base_power CLOTHESWASHER*0.7763;
+          power_fraction 1.000000;
+          impedance_fraction 0.000000;
+          current_fraction 0.000000;
+          power_pf 0.970;
+          current_pf 0.970;
+          impedance_pf 0.970;
+          heat_fraction 0.86;
+     };
+     object ZIPload {
+          schedule_skew +1370;
+          base_power REFRIGERATOR*1.0019;
+          power_fraction 1.000000;
+          impedance_fraction 0.000000;
+          current_fraction 0.000000;
+          power_pf 0.970;
+          current_pf 0.970;
+          impedance_pf 0.970;
+          heat_fraction 0.77;
+     };
+     object ZIPload {
+          schedule_skew +1370;
+          base_power DRYER*0.9110;
+          power_fraction 0.100000;
+          impedance_fraction 0.800000;
+          current_fraction 0.100000;
+          power_pf 0.900;
+          current_pf 0.900;
+          impedance_pf 1.000;
+          heat_fraction 0.80;
+     };
+     object ZIPload {
+          schedule_skew +1370;
+          base_power FREEZER*1.0590;
+          power_fraction 1.000000;
+          impedance_fraction 0.000000;
+          current_fraction 0.000000;
+          power_pf 0.970;
+          current_pf 0.970;
+          impedance_pf 0.970;
+          heat_fraction 0.86;
+     };
+     object ZIPload {
+          schedule_skew +1370;
+          base_power RANGE*0.6381;
+          power_fraction 0.000000;
+          impedance_fraction 1.000000;
+          current_fraction 0.000000;
+          power_pf 0.000;
+          current_pf 0.000;
+          impedance_pf 1.000;
+          heat_fraction 0.94;
+     };
+     object ZIPload {
+          schedule_skew +1370;
+          base_power MICROWAVE*1.0063;
+          power_fraction 1.000000;
+          impedance_fraction 0.000000;
+          current_fraction 0.000000;
+          power_pf 0.970;
+          current_pf 0.970;
+          impedance_pf 0.970;
+          heat_fraction 0.67;
+     };
+    
+}
+
+// Node 2 Right T node 4 house
+
+object triplex_line {
+     from t_n_2_right_tn3;
+     to t_n_2_right_tn4;
+     phases AS;
+     length 160;
+     configuration TLCFG;
+}	
+
+object triplex_node {
+	name t_n_2_right_tn4;
+	phases AS;
+	//voltage_1 120 + 0j;		
+	//voltage_2 120 + 0j;
+	//voltage_N 0;
+	nominal_voltage 120;
+	}
+	
+object triplex_line {
+     from t_n_2_right_tn4;
+     to t_n_2_right_tn4_tm1_house;
+     phases AS;
+     length 10;
+     configuration TLCFG;
+}
+
+object triplex_meter {
+     name t_n_2_right_tn4_tm1_house;
+     phases AS;
+     nominal_voltage 120.00;
+     object recorder {
+     	name load_recorder_t_n_2_right_tn4_tm1_house;
+     	file t_n_2_right_tn4_tm1_house.csv;
+     	interval 1;
+     	property measured_voltage_1, measured_voltage_2, measured_current_1,measured_current_2, measured_power;
+};
+}
+
+object triplex_meter {
+     name t_n_2_right_tn4_tm1_house_tm_in_H_B_ESP4;
+     phases AS;
+     nominal_voltage 120.00;
+     parent t_n_2_right_tn4_tm1_house;
+     object recorder {
+     	name load_recorder_t_n_2_right_tn4_tm1_house_tm_in_H_B_ESP4;
+     	file t_n_2_right_tn4_tm1_house_tm_in_H_B_ESP4.csv;
+     	interval 1;
+     	property measured_voltage_1, measured_voltage_2, measured_current_1,measured_current_2, measured_power;
+};
+}
+object inverter {
+      name t_n_2_right_tn4_tm1_house_in_H_B_ESP4;
+      parent t_n_2_right_tn4_tm1_house_tm_in_H_B_ESP4;
+      generator_status ONLINE;
+      inverter_type FOUR_QUADRANT;
+     four_quadrant_control_mode LOAD_FOLLOWING;
+      sense_object t_n_2_m;
+      rated_power 3000.0;		//Per phase rating in VA
+      inverter_efficiency .95;
+      charge_on_threshold 100; //1.5
+      charge_off_threshold 200; //1.7
+      discharge_off_threshold 900000; // 2
+      discharge_on_threshold 1000000; // 3
+      //charge_threshold 1.5 kW;
+     // discharge_threshold 2.5 kW;
+      
+      max_discharge_rate 3 kW;
+      max_charge_rate 3 kW;
+      charge_lockout_time 1;
+      discharge_lockout_time 1;
+      
+      object recorder {
+     	name load_recorder_t_n_2_right_tn4_tm1_house_in_H_B_ESP4;
+     	file t_n_2_right_tn4_tm1_house_in_H_B_ESP4.csv;
+     	interval 1;
+     	property sense_object, VA_Out, VA_In, charge_on_threshold, charge_off_threshold, discharge_off_threshold, discharge_on_threshold;
+	};
+}
+
+
+
+
+object battery {
+	name t_n_2_right_tn4_tm1_house_H_B_ESP4;
+	parent t_n_2_right_tn4_tm1_house_in_H_B_ESP4;
+	use_internal_battery_model TRUE;
+	battery_type LI_ION;
+	rated_power 3 kW;
+	nominal_voltage 120;
+	battery_capacity 20 kWh;
+	round_trip_efficiency 0.81;
+	state_of_charge 0.0;
+	generator_mode SUPPLY_DRIVEN;
+	//battery_state 2;
+	object recorder {
+     	name load_recorder_t_n_2_right_tn4_tm1_house_H_B_ESP4;
+     	file t_n_2_right_tn4_tm1_house_H_B_ESP4.csv;
+     	interval 1;
+     	property state_of_charge, battery_state;
+	};
+	
+}
+
+object triplex_meter {
+     name t_n_2_right_tn4_tm1_house_tm_in_H_B;
+     phases AS;
+     nominal_voltage 120.00;
+     parent t_n_2_right_tn4_tm1_house;
+     object recorder {
+     	name load_recorder_t_n_2_right_tn4_tm1_house_tm_in_H_B;
+     	file t_n_2_right_tn4_tm1_house_tm_in_H_B.csv;
+     	interval 1;
+     	property measured_voltage_1, measured_voltage_2, measured_current_1,measured_current_2, measured_power;
+};
+}
+
+
+object inverter {
+      name t_n_2_right_tn4_tm1_house_in_H_B;
+      parent t_n_2_right_tn4_tm1_house_tm_in_H_B;
+      generator_status ONLINE;
+      inverter_type FOUR_QUADRANT;
+     four_quadrant_control_mode LOAD_FOLLOWING;
+      sense_object t_n_2_right_tn4_tm1_house_Home;
+      rated_power 3000.0;		//Per phase rating in VA
+      inverter_efficiency .95;
+      charge_on_threshold 1500; //1.5
+      charge_off_threshold 1700; //1.7
+      discharge_off_threshold 2000; // 2
+      discharge_on_threshold 3000; // 3
+      //charge_threshold 1.5 kW;
+     // discharge_threshold 2.5 kW;
+      
+      max_discharge_rate 3 kW;
+      max_charge_rate 3 kW;
+      charge_lockout_time 1;
+      discharge_lockout_time 1;
+      
+      object recorder {
+     	name load_recorder_t_n_2_right_tn4_tm1_house_in_H_B;
+     	file t_n_2_right_tn4_tm1_house_in_H_B.csv;
+     	interval 1;
+     	property sense_object, VA_Out, VA_In, charge_on_threshold, charge_off_threshold, discharge_off_threshold, discharge_on_threshold;
+	};
+}
+
+object battery {
+	name t_n_2_right_tn4_tm1_house_H_B;
+	parent t_n_2_right_tn4_tm1_house_in_H_B;
+	use_internal_battery_model TRUE;
+	battery_type LI_ION;
+	rated_power 3 kW;
+	nominal_voltage 120;
+	battery_capacity 10 kWh;
+	round_trip_efficiency 0.81;
+	state_of_charge 0.4;
+	generator_mode SUPPLY_DRIVEN;
+	//battery_state 2;
+	object recorder {
+     	name load_recorder_t_n_2_right_tn4_tm1_house_H_B;
+     	file t_n_2_right_tn4_tm1_house_H_B.csv;
+     	interval 1;
+     	property state_of_charge, battery_state;
+	};
+	
+}
+
+
+object triplex_meter {
+     name t_n_2_right_tn4_tm1_house_tm_in_H_S;
+     phases AS;
+     nominal_voltage 120.00;
+     parent t_n_2_right_tn4_tm1_house;
+     object recorder {
+     	name load_recorder_t_n_2_right_tn4_tm1_house_tm_in_H_S;
+     	file t_n_2_right_tn4_tm1_house_tm_in_H_S.csv;
+     	interval 1;
+     	property measured_voltage_1, measured_voltage_2, measured_current_1,measured_current_2, measured_power;
+};
+}
+
+object inverter {
+	name t_n_2_right_tn4_tm1_house_in_H_S;
+	phases AS;
+	parent t_n_2_right_tn4_tm1_house_tm_in_H_S;
+	generator_status ONLINE;
+	inverter_type PWM;
+	//generator_mode SUPPLY_DRIVEN;
+	rated_power 2500000;
+	object recorder {
+	property phaseA_V_Out, V_In, I_In, VA_Out; 
+	file t_n_2_right_tn4_tm1_house_in_H_S.csv;
+	interval 1;
+	limit 6000000;
+	};
+}
+object solar {
+	name t_n_2_right_tn4_tm1_house_H_S;
+	phases AS;
+	parent t_n_2_right_tn4_tm1_house_in_H_S;
+	//weather "Yakima";
+	generator_status ONLINE;
+	generator_mode SUPPLY_DRIVEN;
+	area 1134.08 ft^2;
+	tilt_angle 90.0;
+	efficiency 0.05;
+	orientation_azimuth 180; //equator-facing (South)
+	orientation DEFAULT;
+	SOLAR_TILT_MODEL SOLPOS;
+	SOLAR_POWER_MODEL FLATPLATE;
+	latitude 21.31236;
+	longitude -158.08463;
+	object recorder {
+	property VA_Out.real, V_Out, Insolation, area;
+	file t_n_2_right_tn4_tm1_house_H_S.csv;
+	interval 1;
+	limit 6000000;
+	};
+}
+
+
+object triplex_meter{
+	name t_n_2_right_tn4_tm1_house_Home;
+	parent t_n_2_right_tn4_tm1_house;
+	phases AS;
+    	 nominal_voltage 120.00;
+     	object recorder {
+     	name home_load_recorder_t_n_2_right_tn4_tm1_house_Home;
+     	file t_n_2_right_tn4_tm1_house_Home.csv;
+     	interval 1;
+     	property measured_voltage_1, measured_voltage_2, measured_current_1,measured_current_2, measured_power;
+};
+}
+
+
+object house {
+     parent t_n_2_right_tn4_tm1_house_Home;
+     name t_n_2_right_tn4_tm1_house_Home_1;
+     //Residential_2
+     
+     
+     
+     schedule_skew -1370; // Seconds
+     floor_area 2100; //sq. ft
+     number_of_stories 1;
+     heating_system_type GAS;
+     cooling_system_type ELECTRIC;
+     thermal_integrity_level NORMAL;
+     motor_efficiency AVERAGE;
+    // cooling_setpoint 72;
+     heating_setpoint heating7*0.985+2.01;
+     groupid Home_Type_1;
+     
+ 
+     airchange_per_hour 0.80;
+     hvac_power_factor 0.97; 
+     fan_type ONE_SPEED;
+     hvac_breaker_rating 200;
+     total_thermal_mass_per_floor_area 3.01;
+     motor_model BASIC;
+     cooling_COP 3.90;
+     
+     number_of_doors 2;
+     air_temperature 71.9; //degF indoor air temperature
+     mass_temperature 71.9; // Interior mass temperature
+     
+     object passive_controller{
+     	name t_n_2_right_tn4_tm1_house_Home_1_hvac;
+     	period 3600;
+     	
+     	base_setpoint cooling2*0.996+4.51;
+     	control_mode RAMP;
+     	sensitivity 1;
+     	expectation_obj Market_1;
+     	expectation_prop avg24;
+     	setpoint_prop cooling_setpoint;
+     	state_prop override;
+     	
+     	observation_obj Market_1;
+     	observation_prop current_market.clearing_price;
+     	mean_observation_prop avg24;
+     	stdev_observation_prop std24;
+     	range_low -1.500;
+     	range_high 2.500;
+     	ramp_low 1.333;
+     	ramp_high 0.800;
+     	object recorder{
+     		file t_n_2_right_tn4_tm1_house_Home_1_hvac.csv;
+     		interval 1;
+     		property output_state,prob_off,observation, mean_observation,stdev_observation, comfort_level;
+     		};
+     	
+     	};
+     
+      object waterheater{
+	 object passive_controller {
+		name t_n_2_right_tn4_tm1_house_Home_1_waterheater;
+		period 3600;
+		control_mode PROBABILITY_OFF;
+		expectation_object Market_1;
+		expectation_prop avg24;
+		setpoint_prop tank_setpoint;
+		state_prop override;
+		comfort_level 0.82;
+		observation_obj Market_1;
+		observation_property current_market.clearing_price;
+		mean_observation_prop avg24;
+		stdev_observation_prop std24;
+		object recorder{
+			file t_n_2_right_tn4_tm1_house_Home_1_waterheater.csv;
+			interval 1;
+			property output_state,prob_off,observation, mean_observation,stdev_observation, comfort_level;
+		};
+	};
+     };
+     
+
+object ZIPload {
+          schedule_skew -1370;
+          base_power LIGHTS*0.8709;
+          power_fraction 0.000000;
+          impedance_fraction 1.000000;
+          current_fraction 0.000000;
+          power_pf 0.000;
+          current_pf 0.000;
+          impedance_pf 1.000;
+          heat_fraction 0.70;
+     };
+     object ZIPload {
+          schedule_skew -1370;
+          base_power CLOTHESWASHER*0.7763;
+          power_fraction 1.000000;
+          impedance_fraction 0.000000;
+          current_fraction 0.000000;
+          power_pf 0.970;
+          current_pf 0.970;
+          impedance_pf 0.970;
+          heat_fraction 0.86;
+     };
+     object ZIPload {
+          schedule_skew -1370;
+          base_power REFRIGERATOR*1.0019;
+          power_fraction 1.000000;
+          impedance_fraction 0.000000;
+          current_fraction 0.000000;
+          power_pf 0.970;
+          current_pf 0.970;
+          impedance_pf 0.970;
+          heat_fraction 0.77;
+     };
+     object ZIPload {
+          schedule_skew -1370;
+          base_power DRYER*0.9110;
+          power_fraction 0.100000;
+          impedance_fraction 0.800000;
+          current_fraction 0.100000;
+          power_pf 0.900;
+          current_pf 0.900;
+          impedance_pf 1.000;
+          heat_fraction 0.80;
+     };
+     object ZIPload {
+          schedule_skew -1370;
+          base_power FREEZER*1.0590;
+          power_fraction 1.000000;
+          impedance_fraction 0.000000;
+          current_fraction 0.000000;
+          power_pf 0.970;
+          current_pf 0.970;
+          impedance_pf 0.970;
+          heat_fraction 0.86;
+     };
+     object ZIPload {
+          schedule_skew -1370;
+          base_power RANGE*0.6381;
+          power_fraction 0.000000;
+          impedance_fraction 1.000000;
+          current_fraction 0.000000;
+          power_pf 0.000;
+          current_pf 0.000;
+          impedance_pf 1.000;
+          heat_fraction 0.94;
+     };
+     object ZIPload {
+          schedule_skew -1370;
+          base_power MICROWAVE*1.0063;
+          power_fraction 1.000000;
+          impedance_fraction 0.000000;
+          current_fraction 0.000000;
+          power_pf 0.970;
+          current_pf 0.970;
+          impedance_pf 0.970;
+          heat_fraction 0.67;
+     };
+    
+}
+
+// Node 2 Right T node 5 house
+
+object triplex_line {
+     from t_n_2_right_tn4;
+     to t_n_2_right_tn5;
+     phases AS;
+     length 160;
+     configuration TLCFG;
+}	
+
+object triplex_node {
+	name t_n_2_right_tn5;
+	phases AS;
+	//voltage_1 120 + 0j;		
+	//voltage_2 120 + 0j;
+	//voltage_N 0;
+	nominal_voltage 120;
+	}
+	
+object triplex_line {
+     from t_n_2_right_tn5;
+     to t_n_2_right_tn5_tm1_house;
+     phases AS;
+     length 10;
+     configuration TLCFG;
+}
+
+object triplex_meter {
+     name t_n_2_right_tn5_tm1_house;
+     phases AS;
+     nominal_voltage 120.00;
+     object recorder {
+     	name load_recorder_t_n_2_right_tn5_tm1_house;
+     	file t_n_2_right_tn5_tm1_house.csv;
+     	interval 1;
+     	property measured_voltage_1, measured_voltage_2, measured_current_1,measured_current_2, measured_power;
+};
+}
+
+object triplex_meter {
+     name t_n_2_right_tn5_tm1_house_tm_in_H_B_ESP5;
+     phases AS;
+     nominal_voltage 120.00;
+     parent t_n_2_right_tn5_tm1_house;
+     object recorder {
+     	name load_recorder_t_n_2_right_tn5_tm1_house_tm_in_H_B_ESP5;
+     	file t_n_2_right_tn5_tm1_house_tm_in_H_B_ESP5.csv;
+     	interval 1;
+     	property measured_voltage_1, measured_voltage_2, measured_current_1,measured_current_2, measured_power;
+};
+}
+object inverter {
+      name t_n_2_right_tn5_tm1_house_in_H_B_ESP5;
+      parent t_n_2_right_tn5_tm1_house_tm_in_H_B_ESP5;
+      generator_status ONLINE;
+      inverter_type FOUR_QUADRANT;
+     four_quadrant_control_mode LOAD_FOLLOWING;
+      sense_object t_n_2_m;
+      rated_power 3000.0;		//Per phase rating in VA
+      inverter_efficiency .95;
+      charge_on_threshold 100; //1.5
+      charge_off_threshold 200; //1.7
+      discharge_off_threshold 900000; // 2
+      discharge_on_threshold 1000000; // 3
+      //charge_threshold 1.5 kW;
+     // discharge_threshold 2.5 kW;
+      
+      max_discharge_rate 3 kW;
+      max_charge_rate 3 kW;
+      charge_lockout_time 1;
+      discharge_lockout_time 1;
+      
+      object recorder {
+     	name load_recorder_t_n_2_right_tn5_tm1_house_in_H_B_ESP5;
+     	file t_n_2_right_tn5_tm1_house_in_H_B_ESP5.csv;
+     	interval 1;
+     	property sense_object, VA_Out, VA_In, charge_on_threshold, charge_off_threshold, discharge_off_threshold, discharge_on_threshold;
+	};
+}
+
+
+
+
+object battery {
+	name t_n_2_right_tn5_tm1_house_H_B_ESP5;
+	parent t_n_2_right_tn5_tm1_house_in_H_B_ESP5;
+	use_internal_battery_model TRUE;
+	battery_type LI_ION;
+	rated_power 3 kW;
+	nominal_voltage 120;
+	battery_capacity 15 kWh;
+	round_trip_efficiency 0.81;
+	state_of_charge 0.0;
+	generator_mode SUPPLY_DRIVEN;
+	//battery_state 2;
+	object recorder {
+     	name load_recorder_t_n_2_right_tn5_tm1_house_H_B_ESP5;
+     	file t_n_2_right_tn5_tm1_house_H_B_ESP5.csv;
+     	interval 1;
+     	property state_of_charge, battery_state;
+	};
+	
+}
+
+object triplex_meter {
+     name t_n_2_right_tn5_tm1_house_tm_in_H_B;
+     phases AS;
+     nominal_voltage 120.00;
+     parent t_n_2_right_tn5_tm1_house;
+     object recorder {
+     	name load_recorder_t_n_2_right_tn5_tm1_house_tm_in_H_B;
+     	file t_n_2_right_tn5_tm1_house_tm_in_H_B.csv;
+     	interval 1;
+     	property measured_voltage_1, measured_voltage_2, measured_current_1,measured_current_2, measured_power;
+};
+}
+
+
+object inverter {
+      name t_n_2_right_tn5_tm1_house_in_H_B;
+      parent t_n_2_right_tn5_tm1_house_tm_in_H_B;
+      generator_status ONLINE;
+      inverter_type FOUR_QUADRANT;
+     four_quadrant_control_mode LOAD_FOLLOWING;
+      sense_object t_n_2_right_tn5_tm1_house_Home;
+      rated_power 3000.0;		//Per phase rating in VA
+      inverter_efficiency .95;
+      charge_on_threshold 1500; //1.5
+      charge_off_threshold 1700; //1.7
+      discharge_off_threshold 2000; // 2
+      discharge_on_threshold 3000; // 3
+      //charge_threshold 1.5 kW;
+     // discharge_threshold 2.5 kW;
+      
+      max_discharge_rate 3 kW;
+      max_charge_rate 3 kW;
+      charge_lockout_time 1;
+      discharge_lockout_time 1;
+      
+      object recorder {
+     	name load_recorder_t_n_2_right_tn5_tm1_house_in_H_B;
+     	file t_n_2_right_tn5_tm1_house_in_H_B.csv;
+     	interval 1;
+     	property sense_object, VA_Out, VA_In, charge_on_threshold, charge_off_threshold, discharge_off_threshold, discharge_on_threshold;
+	};
+}
+
+object battery {
+	name t_n_2_right_tn5_tm1_house_H_B;
+	parent t_n_2_right_tn5_tm1_house_in_H_B;
+	use_internal_battery_model TRUE;
+	battery_type LI_ION;
+	rated_power 3 kW;
+	nominal_voltage 120;
+	battery_capacity 10 kWh;
+	round_trip_efficiency 0.81;
+	state_of_charge 0.3;
+	generator_mode SUPPLY_DRIVEN;
+	//battery_state 2;
+	object recorder {
+     	name load_recorder_t_n_2_right_tn5_tm1_house_H_B;
+     	file t_n_2_right_tn5_tm1_house_H_B.csv;
+     	interval 1;
+     	property state_of_charge, battery_state;
+	};
+	
+}
+
+
+object triplex_meter {
+     name t_n_2_right_tn5_tm1_house_tm_in_H_S;
+     phases AS;
+     nominal_voltage 120.00;
+     parent t_n_2_right_tn5_tm1_house;
+     object recorder {
+     	name load_recorder_t_n_2_right_tn5_tm1_house_tm_in_H_S;
+     	file t_n_2_right_tn5_tm1_house_tm_in_H_S.csv;
+     	interval 1;
+     	property measured_voltage_1, measured_voltage_2, measured_current_1,measured_current_2, measured_power;
+};
+}
+
+object inverter {
+	name t_n_2_right_tn5_tm1_house_in_H_S;
+	phases AS;
+	parent t_n_2_right_tn5_tm1_house_tm_in_H_S;
+	generator_status ONLINE;
+	inverter_type PWM;
+	//generator_mode SUPPLY_DRIVEN;
+	rated_power 2500000;
+	object recorder {
+	property phaseA_V_Out, V_In, I_In, VA_Out; 
+	file t_n_2_right_tn5_tm1_house_in_H_S.csv;
+	interval 1;
+	limit 6000000;
+	};
+}
+object solar {
+	name t_n_2_right_tn5_tm1_house_H_S;
+	phases AS;
+	parent t_n_2_right_tn5_tm1_house_in_H_S;
+	//weather "Yakima";
+	generator_status ONLINE;
+	generator_mode SUPPLY_DRIVEN;
+	area 283.52 ft^2;
+	tilt_angle 90.0;
+	efficiency 0.05;
+	orientation_azimuth 180; //equator-facing (South)
+	orientation DEFAULT;
+	SOLAR_TILT_MODEL SOLPOS;
+	SOLAR_POWER_MODEL FLATPLATE;
+	latitude 21.31236;
+	longitude -158.08463;
+	object recorder {
+	property VA_Out.real, V_Out, Insolation, area;
+	file t_n_2_right_tn5_tm1_house_H_S.csv;
+	interval 1;
+	limit 6000000;
+	};
+}
+
+
+object triplex_meter{
+	name t_n_2_right_tn5_tm1_house_Home;
+	parent t_n_2_right_tn5_tm1_house;
+	phases AS;
+    	 nominal_voltage 120.00;
+     	object recorder {
+     	name home_load_recorder_t_n_2_right_tn5_tm1_house_Home;
+     	file t_n_2_right_tn5_tm1_house_Home.csv;
+     	interval 1;
+     	property measured_voltage_1, measured_voltage_2, measured_current_1,measured_current_2, measured_power;
+};
+}
+
+
+object house {
+     parent t_n_2_right_tn5_tm1_house_Home;
+     name t_n_2_right_tn5_tm1_house_Home_1;
+     //Residential_2
+     
+     
+     
+     schedule_skew +200; // Seconds
+     floor_area 2100; //sq. ft
+     number_of_stories 1;
+     heating_system_type GAS;
+     cooling_system_type ELECTRIC;
+     thermal_integrity_level NORMAL;
+     motor_efficiency AVERAGE;
+    // cooling_setpoint 72;
+     heating_setpoint heating7*0.985+2.01;
+     groupid Home_Type_1;
+     
+ 
+     airchange_per_hour 0.80;
+     hvac_power_factor 0.97; 
+     fan_type ONE_SPEED;
+     hvac_breaker_rating 200;
+     total_thermal_mass_per_floor_area 3.01;
+     motor_model BASIC;
+     cooling_COP 3.90;
+     
+     number_of_doors 2;
+     air_temperature 71.9; //degF indoor air temperature
+     mass_temperature 71.9; // Interior mass temperature
+     
+     object passive_controller{
+     	name t_n_2_right_tn5_tm1_house_Home_1_hvac;
+     	period 3600;
+     	
+     	base_setpoint cooling2*0.996+4.51;
+     	control_mode RAMP;
+     	sensitivity 1;
+     	expectation_obj Market_1;
+     	expectation_prop avg24;
+     	setpoint_prop cooling_setpoint;
+     	state_prop override;
+     	
+     	observation_obj Market_1;
+     	observation_prop current_market.clearing_price;
+     	mean_observation_prop avg24;
+     	stdev_observation_prop std24;
+     	range_low -1.500;
+     	range_high 2.500;
+     	ramp_low 1.333;
+     	ramp_high 0.800;
+     	object recorder{
+     		file t_n_2_right_tn5_tm1_house_Home_1_hvac.csv;
+     		interval 1;
+     		property output_state,prob_off,observation, mean_observation,stdev_observation, comfort_level;
+     		};
+     	
+     	};
+     
+      object waterheater{
+	 object passive_controller {
+		name t_n_2_right_tn5_tm1_house_Home_1_waterheater;
+		period 3600;
+		control_mode PROBABILITY_OFF;
+		expectation_object Market_1;
+		expectation_prop avg24;
+		setpoint_prop tank_setpoint;
+		state_prop override;
+		comfort_level 0.82;
+		observation_obj Market_1;
+		observation_property current_market.clearing_price;
+		mean_observation_prop avg24;
+		stdev_observation_prop std24;
+		object recorder{
+			file t_n_2_right_tn5_tm1_house_Home_1_waterheater.csv;
+			interval 1;
+			property output_state,prob_off,observation, mean_observation,stdev_observation, comfort_level;
+		};
+	};
+     };
+     
+
+object ZIPload {
+          schedule_skew +200;
+          base_power LIGHTS*0.8709;
+          power_fraction 0.000000;
+          impedance_fraction 1.000000;
+          current_fraction 0.000000;
+          power_pf 0.000;
+          current_pf 0.000;
+          impedance_pf 1.000;
+          heat_fraction 0.70;
+     };
+     object ZIPload {
+          schedule_skew +200;
+          base_power CLOTHESWASHER*0.7763;
+          power_fraction 1.000000;
+          impedance_fraction 0.000000;
+          current_fraction 0.000000;
+          power_pf 0.970;
+          current_pf 0.970;
+          impedance_pf 0.970;
+          heat_fraction 0.86;
+     };
+     object ZIPload {
+          schedule_skew +200;
+          base_power REFRIGERATOR*1.0019;
+          power_fraction 1.000000;
+          impedance_fraction 0.000000;
+          current_fraction 0.000000;
+          power_pf 0.970;
+          current_pf 0.970;
+          impedance_pf 0.970;
+          heat_fraction 0.77;
+     };
+     object ZIPload {
+          schedule_skew +200;
+          base_power DRYER*0.9110;
+          power_fraction 0.100000;
+          impedance_fraction 0.800000;
+          current_fraction 0.100000;
+          power_pf 0.900;
+          current_pf 0.900;
+          impedance_pf 1.000;
+          heat_fraction 0.80;
+     };
+     object ZIPload {
+          schedule_skew +200;
+          base_power FREEZER*1.0590;
+          power_fraction 1.000000;
+          impedance_fraction 0.000000;
+          current_fraction 0.000000;
+          power_pf 0.970;
+          current_pf 0.970;
+          impedance_pf 0.970;
+          heat_fraction 0.86;
+     };
+     object ZIPload {
+          schedule_skew +200;
+          base_power RANGE*0.6381;
+          power_fraction 0.000000;
+          impedance_fraction 1.000000;
+          current_fraction 0.000000;
+          power_pf 0.000;
+          current_pf 0.000;
+          impedance_pf 1.000;
+          heat_fraction 0.94;
+     };
+     object ZIPload {
+          schedule_skew +200;
+          base_power MICROWAVE*1.0063;
+          power_fraction 1.000000;
+          impedance_fraction 0.000000;
+          current_fraction 0.000000;
+          power_pf 0.970;
+          current_pf 0.970;
+          impedance_pf 0.970;
+          heat_fraction 0.67;
+     };
+    
+}
+
+
+// Node 2 Right T node 6 house
+
+object triplex_line {
+     from t_n_2_right_tn5;
+     to t_n_2_right_tn6;
+     phases AS;
+     length 160;
+     configuration TLCFG;
+}	
+
+object triplex_node {
+	name t_n_2_right_tn6;
+	phases AS;
+	//voltage_1 120 + 0j;		
+	//voltage_2 120 + 0j;
+	//voltage_N 0;
+	nominal_voltage 120;
+	}
+	
+object triplex_line {
+     from t_n_2_right_tn6;
+     to t_n_2_right_tn6_tm1_house;
+     phases AS;
+     length 10;
+     configuration TLCFG;
+}
+
+object triplex_meter {
+     name t_n_2_right_tn6_tm1_house;
+     phases AS;
+     nominal_voltage 120.00;
+     object recorder {
+     	name load_recorder_t_n_2_right_tn6_tm1_house;
+     	file t_n_2_right_tn6_tm1_house.csv;
+     	interval 1;
+     	property measured_voltage_1, measured_voltage_2, measured_current_1,measured_current_2, measured_power;
+};
+}
+
+object triplex_meter {
+     name t_n_2_right_tn6_tm1_house_tm_in_H_B_ESP6;
+     phases AS;
+     nominal_voltage 120.00;
+     parent t_n_2_right_tn6_tm1_house;
+     object recorder {
+     	name load_recorder_t_n_2_right_tn6_tm1_house_tm_in_H_B_ESP6;
+     	file t_n_2_right_tn6_tm1_house_tm_in_H_B_ESP6.csv;
+     	interval 1;
+     	property measured_voltage_1, measured_voltage_2, measured_current_1,measured_current_2, measured_power;
+};
+}
+object inverter {
+      name t_n_2_right_tn6_tm1_house_in_H_B_ESP6;
+      parent t_n_2_right_tn6_tm1_house_tm_in_H_B_ESP6;
+      generator_status ONLINE;
+      inverter_type FOUR_QUADRANT;
+     four_quadrant_control_mode LOAD_FOLLOWING;
+      sense_object t_n_2_m;
+      rated_power 3000.0;		//Per phase rating in VA
+      inverter_efficiency .95;
+      charge_on_threshold 100; //1.5
+      charge_off_threshold 200; //1.7
+      discharge_off_threshold 900000; // 2
+      discharge_on_threshold 1000000; // 3
+      //charge_threshold 1.5 kW;
+     // discharge_threshold 2.5 kW;
+      
+      max_discharge_rate 3 kW;
+      max_charge_rate 3 kW;
+      charge_lockout_time 1;
+      discharge_lockout_time 1;
+      
+      object recorder {
+     	name load_recorder_t_n_2_right_tn6_tm1_house_in_H_B_ESP6;
+     	file t_n_2_right_tn6_tm1_house_in_H_B_ESP6.csv;
+     	interval 1;
+     	property sense_object, VA_Out, VA_In, charge_on_threshold, charge_off_threshold, discharge_off_threshold, discharge_on_threshold;
+	};
+}
+
+
+
+
+object battery {
+	name t_n_2_right_tn6_tm1_house_H_B_ESP6;
+	parent t_n_2_right_tn6_tm1_house_in_H_B_ESP6;
+	use_internal_battery_model TRUE;
+	battery_type LI_ION;
+	rated_power 3 kW;
+	nominal_voltage 120;
+	battery_capacity 5 kWh;
+	round_trip_efficiency 0.81;
+	state_of_charge 0.0;
+	generator_mode SUPPLY_DRIVEN;
+	//battery_state 2;
+	object recorder {
+     	name load_recorder_t_n_2_right_tn6_tm1_house_H_B_ESP6;
+     	file t_n_2_right_tn6_tm1_house_H_B_ESP6.csv;
+     	interval 1;
+     	property state_of_charge, battery_state;
+	};
+	
+}
+
+object triplex_meter {
+     name t_n_2_right_tn6_tm1_house_tm_in_H_B;
+     phases AS;
+     nominal_voltage 120.00;
+     parent t_n_2_right_tn6_tm1_house;
+     object recorder {
+     	name load_recorder_t_n_2_right_tn6_tm1_house_tm_in_H_B;
+     	file t_n_2_right_tn6_tm1_house_tm_in_H_B.csv;
+     	interval 1;
+     	property measured_voltage_1, measured_voltage_2, measured_current_1,measured_current_2, measured_power;
+};
+}
+
+
+object inverter {
+      name t_n_2_right_tn6_tm1_house_in_H_B;
+      parent t_n_2_right_tn6_tm1_house_tm_in_H_B;
+      generator_status ONLINE;
+      inverter_type FOUR_QUADRANT;
+     four_quadrant_control_mode LOAD_FOLLOWING;
+      sense_object t_n_2_right_tn6_tm1_house_Home;
+      rated_power 3000.0;		//Per phase rating in VA
+      inverter_efficiency .95;
+      charge_on_threshold 1500; //1.5
+      charge_off_threshold 1700; //1.7
+      discharge_off_threshold 2000; // 2
+      discharge_on_threshold 3000; // 3
+      //charge_threshold 1.5 kW;
+     // discharge_threshold 2.5 kW;
+      
+      max_discharge_rate 3 kW;
+      max_charge_rate 3 kW;
+      charge_lockout_time 1;
+      discharge_lockout_time 1;
+      
+      object recorder {
+     	name load_recorder_t_n_2_right_tn6_tm1_house_in_H_B;
+     	file t_n_2_right_tn6_tm1_house_in_H_B.csv;
+     	interval 1;
+     	property sense_object, VA_Out, VA_In, charge_on_threshold, charge_off_threshold, discharge_off_threshold, discharge_on_threshold;
+	};
+}
+
+object battery {
+	name t_n_2_right_tn6_tm1_house_H_B;
+	parent t_n_2_right_tn6_tm1_house_in_H_B;
+	use_internal_battery_model TRUE;
+	battery_type LI_ION;
+	rated_power 3 kW;
+	nominal_voltage 120;
+	battery_capacity 10 kWh;
+	round_trip_efficiency 0.81;
+	state_of_charge 0.7;
+	generator_mode SUPPLY_DRIVEN;
+	//battery_state 2;
+	object recorder {
+     	name load_recorder_t_n_2_right_tn6_tm1_house_H_B;
+     	file t_n_2_right_tn6_tm1_house_H_B.csv;
+     	interval 1;
+     	property state_of_charge, battery_state;
+	};
+	
+}
+
+
+object triplex_meter {
+     name t_n_2_right_tn6_tm1_house_tm_in_H_S;
+     phases AS;
+     nominal_voltage 120.00;
+     parent t_n_2_right_tn6_tm1_house;
+     object recorder {
+     	name load_recorder_t_n_2_right_tn6_tm1_house_tm_in_H_S;
+     	file t_n_2_right_tn6_tm1_house_tm_in_H_S.csv;
+     	interval 1;
+     	property measured_voltage_1, measured_voltage_2, measured_current_1,measured_current_2, measured_power;
+};
+}
+
+object inverter {
+	name t_n_2_right_tn6_tm1_house_in_H_S;
+	phases AS;
+	parent t_n_2_right_tn6_tm1_house_tm_in_H_S;
+	generator_status ONLINE;
+	inverter_type PWM;
+	//generator_mode SUPPLY_DRIVEN;
+	rated_power 2500000;
+	object recorder {
+	property phaseA_V_Out, V_In, I_In, VA_Out; 
+	file t_n_2_right_tn6_tm1_house_in_H_S.csv;
+	interval 1;
+	limit 6000000;
+	};
+}
+object solar {
+	name t_n_2_right_tn6_tm1_house_H_S;
+	phases AS;
+	parent t_n_2_right_tn6_tm1_house_in_H_S;
+	//weather "Yakima";
+	generator_status ONLINE;
+	generator_mode SUPPLY_DRIVEN;
+	area 425.28 ft^2;
+	tilt_angle 90.0;
+	efficiency 0.05;
+	orientation_azimuth 180; //equator-facing (South)
+	orientation DEFAULT;
+	SOLAR_TILT_MODEL SOLPOS;
+	SOLAR_POWER_MODEL FLATPLATE;
+	latitude 21.31236;
+	longitude -158.08463;
+	object recorder {
+	property VA_Out.real, V_Out, Insolation, area;
+	file t_n_2_right_tn6_tm1_house_H_S.csv;
+	interval 1;
+	limit 6000000;
+	};
+}
+
+
+object triplex_meter{
+	name t_n_2_right_tn6_tm1_house_Home;
+	parent t_n_2_right_tn6_tm1_house;
+	phases AS;
+    	 nominal_voltage 120.00;
+     	object recorder {
+     	name home_load_recorder_t_n_2_right_tn6_tm1_house_Home;
+     	file t_n_2_right_tn6_tm1_house_Home.csv;
+     	interval 1;
+     	property measured_voltage_1, measured_voltage_2, measured_current_1,measured_current_2, measured_power;
+};
+}
+
+
+object house {
+     parent t_n_2_right_tn6_tm1_house_Home;
+     name t_n_2_right_tn6_tm1_house_Home_1;
+     //Residential_2
+     
+     
+     
+     schedule_skew +100; // Seconds
+     floor_area 2100; //sq. ft
+     number_of_stories 1;
+     heating_system_type GAS;
+     cooling_system_type ELECTRIC;
+     thermal_integrity_level NORMAL;
+     motor_efficiency AVERAGE;
+    // cooling_setpoint 72;
+     heating_setpoint heating7*0.985+2.01;
+     groupid Home_Type_1;
+     
+ 
+     airchange_per_hour 0.80;
+     hvac_power_factor 0.97; 
+     fan_type ONE_SPEED;
+     hvac_breaker_rating 200;
+     total_thermal_mass_per_floor_area 3.01;
+     motor_model BASIC;
+     cooling_COP 3.90;
+     
+     number_of_doors 2;
+     air_temperature 71.9; //degF indoor air temperature
+     mass_temperature 71.9; // Interior mass temperature
+     
+     object passive_controller{
+     	name t_n_2_right_tn6_tm1_house_Home_1_hvac;
+     	period 3600;
+     	
+     	base_setpoint cooling2*0.996+4.51;
+     	control_mode RAMP;
+     	sensitivity 1;
+     	expectation_obj Market_1;
+     	expectation_prop avg24;
+     	setpoint_prop cooling_setpoint;
+     	state_prop override;
+     	
+     	observation_obj Market_1;
+     	observation_prop current_market.clearing_price;
+     	mean_observation_prop avg24;
+     	stdev_observation_prop std24;
+     	range_low -1.500;
+     	range_high 2.500;
+     	ramp_low 1.333;
+     	ramp_high 0.800;
+     	object recorder{
+     		file t_n_2_right_tn6_tm1_house_Home_1_hvac.csv;
+     		interval 1;
+     		property output_state,prob_off,observation, mean_observation,stdev_observation, comfort_level;
+     		};
+     	
+     	};
+     
+      object waterheater{
+	 object passive_controller {
+		name t_n_2_right_tn6_tm1_house_Home_1_waterheater;
+		period 3600;
+		control_mode PROBABILITY_OFF;
+		expectation_object Market_1;
+		expectation_prop avg24;
+		setpoint_prop tank_setpoint;
+		state_prop override;
+		comfort_level 0.82;
+		observation_obj Market_1;
+		observation_property current_market.clearing_price;
+		mean_observation_prop avg24;
+		stdev_observation_prop std24;
+		object recorder{
+			file t_n_2_right_tn6_tm1_house_Home_1_waterheater.csv;
+			interval 1;
+			property output_state,prob_off,observation, mean_observation,stdev_observation, comfort_level;
+		};
+	};
+     };
+     
+
+object ZIPload {
+          schedule_skew +100;
+          base_power LIGHTS*0.8709;
+          power_fraction 0.000000;
+          impedance_fraction 1.000000;
+          current_fraction 0.000000;
+          power_pf 0.000;
+          current_pf 0.000;
+          impedance_pf 1.000;
+          heat_fraction 0.70;
+     };
+     object ZIPload {
+          schedule_skew +100;
+          base_power CLOTHESWASHER*0.7763;
+          power_fraction 1.000000;
+          impedance_fraction 0.000000;
+          current_fraction 0.000000;
+          power_pf 0.970;
+          current_pf 0.970;
+          impedance_pf 0.970;
+          heat_fraction 0.86;
+     };
+     object ZIPload {
+          schedule_skew +100;
+          base_power REFRIGERATOR*1.0019;
+          power_fraction 1.000000;
+          impedance_fraction 0.000000;
+          current_fraction 0.000000;
+          power_pf 0.970;
+          current_pf 0.970;
+          impedance_pf 0.970;
+          heat_fraction 0.77;
+     };
+     object ZIPload {
+          schedule_skew +100;
+          base_power DRYER*0.9110;
+          power_fraction 0.100000;
+          impedance_fraction 0.800000;
+          current_fraction 0.100000;
+          power_pf 0.900;
+          current_pf 0.900;
+          impedance_pf 1.000;
+          heat_fraction 0.80;
+     };
+     object ZIPload {
+          schedule_skew +100;
+          base_power FREEZER*1.0590;
+          power_fraction 1.000000;
+          impedance_fraction 0.000000;
+          current_fraction 0.000000;
+          power_pf 0.970;
+          current_pf 0.970;
+          impedance_pf 0.970;
+          heat_fraction 0.86;
+     };
+     object ZIPload {
+          schedule_skew +100;
+          base_power RANGE*0.6381;
+          power_fraction 0.000000;
+          impedance_fraction 1.000000;
+          current_fraction 0.000000;
+          power_pf 0.000;
+          current_pf 0.000;
+          impedance_pf 1.000;
+          heat_fraction 0.94;
+     };
+     object ZIPload {
+          schedule_skew +100;
+          base_power MICROWAVE*1.0063;
+          power_fraction 1.000000;
+          impedance_fraction 0.000000;
+          current_fraction 0.000000;
+          power_pf 0.970;
+          current_pf 0.970;
+          impedance_pf 0.970;
+          heat_fraction 0.67;
+     };
+    
+}
+
+#ifdef IGNORE
+
+
+// Node 2 Left T node 1 house
+
+	
+object triplex_line {
+     from t_n_2;
+     to t_n_3;
+     phases AS;
+     length 1640;
+     configuration TLCFG;
+}
+
+object triplex_node {
+	name t_n_3;
+	phases AS;
+	//voltage_1 120 + 0.0j;
+	//voltage_2 120 + 0.0j;
+	//voltage_N 0;
+	nominal_voltage 120;
+	}
+	
+#endif
