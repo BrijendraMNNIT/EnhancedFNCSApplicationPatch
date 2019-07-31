@@ -110,7 +110,7 @@ use the following steps to install ns-3:
 cd $HOME
 
 # download our FNCS version of ns-3 which consists of enhanced FNCS application patch
-git clone https://github.com/
+git clone https://github.com/BrijendraMNNIT/EnhancedFNCSApplicationPatch.git
 
 
 
@@ -143,7 +143,6 @@ State chart diagram before modification ![Alt text](state1new.png?raw=true "Stat
 
 State chart diagram after modification ![Alt text](state2new.png?raw=true "State chart diagram after modification")
 # Model Description
-In this current directory, the most files are related to the GridLAB-D simulator. firstN.cc file is ns-3 model file.
 Set up of the topology ![Alt text](fig5-1.png?raw=true "Simulation topology")
 
 # GridLAB-D Model
@@ -154,14 +153,16 @@ The file firstN.cc creates one more node than the number of houses in the GridLA
 "This strategy can be used for implementing other mechanism of internal real-time pricing, battery charging algorithms, or some other new applications."
 
 # Running the Co-Simulation
+```
 Open three terminals:
       1. At first terminal
-          - source FNCS_env.sh
-          - ./compile-ns3.sh firstN.cc  
-          - ./firstN
+            $ source FNCS_env.sh
+            $ ./compile-ns3.sh firstN.cc  
+            $ ./firstN
       2. At the second terminal
-          - source FNCS_env.sh
-          - gridlabd ./fn
+            $ source FNCS_env.sh
+            $ gridlabd ./microgridversion5.glm
       3. At the third terminal
-          - source FNCS_env.sh
-          -  fncsbroker 2
+            $ source FNCS_env.sh
+            $  fncsbroker 2
+```
