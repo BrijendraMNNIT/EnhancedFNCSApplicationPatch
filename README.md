@@ -134,7 +134,7 @@ CFLAGS="-g -O2" CXXFLAGS="-g -O2" ./waf configure --prefix=$FNCS_INSTALL --with-
 
 After installing all the softwares, we need to set environment variables. These setting can be done through the FNCS_env.sh file. 
 # Description of How FNCS Application Patch Is Enhanced 
-It would be easy to understand by looking the inheritance diagram and the state chart chart diagram. The inheritance diagram of the FNCSApplication class is given below. State chart diagram for the two home instances is depicted.
+It would be easy to understand by looking the inheritance diagram and the state chart chart diagram. The inheritance diagram of the FNCSApplication class is given below. State chart diagram for the two home instances is depicted. ![Alt text](inheritencediagram1-eps-converted-to-1.png?raw=true "Inheritance diagram before modification")
 
 # Model Description
 In this current directory, the most files are related to the GridLAB-D simulator. firstN.cc file is ns-3 model file.
