@@ -64,15 +64,16 @@ FNCS is a broker which synchronizes the GridLAB-D and ns-3 simulator. It exchang
 cd $HOME
 
 # download FNCS
-git clone https://github.com/GridOPTICS/FNCS
+git clone https://github.com/FNCS/fncs
 
 # change to FNCS directory
 cd FNCS
 
-# configure, make, and make install 
+# configure, make, and make install
 ./configure --prefix=$FNCS_INSTALL --with-zmq=$FNCS_INSTALL
 make
 make install
+
 ```
 # Xerces-c++ Installation
 ```
@@ -102,11 +103,14 @@ GridLAB-D is a power distribution system simulator and analysis tool. Install Gr
 # we are doing everything from your $HOME directory
 cd $HOME
 
-# download our FNCS version of GridLAB-D
-git clone https://github.com/GridOPTICS/FNCS-gridlab-d
+# download our FNCS-capable version of GridLAB-D
+git clone https://github.com/gridlab-d/gridlab-d
 
 # change to FNCS-gridlab-d directory
-cd FNCS-gridlab-d
+cd gridlab-d
+
+# checkout the develop branch
+#git checkout -b develop origin/develop
 
 # run to autotools to generate the configure script and Makefile.in
 # templates
@@ -116,8 +120,8 @@ cd FNCS-gridlab-d
 # libtool 2.2.6b
 autoreconf -fi
 
-# configure, make, and make install 
-./configure --prefix=$FNCS_INSTALL --with-xerces=$FNCS_INSTALL --with-fncs=$FNCS_INSTALL
+# configure, make, and make install
+./configure --prefix=$FNCS_INSTALL --with-xerces=$FNCS_INSTALL --with-fncs=$FNCS_INSTALL --enable-silent-rules 'CFLAGS=-g -O0 -w' 'CXXFLAGS=-g -O0 -w' 'LDFLAGS=-g -O0 -w'
 make
 make install
 ```
