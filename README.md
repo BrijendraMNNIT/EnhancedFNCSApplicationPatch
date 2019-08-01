@@ -37,6 +37,25 @@ cd zeromq-3.2.4
 make
 make install
 ```
+# CZMQ Installation
+```
+# we are doing everything from your $HOME directory
+cd $HOME
+
+# download czmq
+wget http://download.zeromq.org/czmq-3.0.0-rc1.tar.gz
+# if you do not have wget, use
+# curl -O http://download.zeromq.org/czmq-3.0.0-rc1.tar.gz
+
+# unpack czmq, change to its directory
+tar -xzf czmq-3.0.0-rc1.tar.gz
+cd czmq-3.0.0
+
+# configure, make, and make install
+./configure --prefix=$HOME/FNCS_install --with-libzmq=$HOME/FNCS_install
+make
+make install
+```
 
 # FNCS Installation
 FNCS is a broker which synchronizes the GridLAB-D and ns-3 simulator. It exchanges messages between the GridLAB-D and ns-3.
@@ -62,6 +81,8 @@ cd $HOME
 
 # download Xerces-C++ 3.1.1 source code
 wget http://apache.mirrors.pair.com//xerces/c/3/sources/xerces-c-3.1.1.tar.gz
+# if there is any problem then try this
+wget https://archive.apache.org/dist/xerces/c/3/sources/xerces-c-3.1.1.tar.gz
 # if you do not have wget, use
 # curl -O http://apache.mirrors.pair.com//xerces/c/3/sources/xerces-c-3.1.1.tar.gz
 
@@ -112,6 +133,7 @@ cd $HOME
 # download our FNCS version of ns-3 which consists of enhanced FNCS application patch
 git clone https://github.com/BrijendraMNNIT/EnhancedFNCSApplicationPatch.git
 
+cd EnhancedFNCSApplicationPatch
 # we begin our install from the ns-3.26 directory
 cd ns-3.26
 
