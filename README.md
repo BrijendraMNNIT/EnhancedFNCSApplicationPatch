@@ -3,16 +3,16 @@ This consists of the enhanced FNCS application patch. This enhancement enables i
 
 
 # Enhanced FNCS Tutorial
-Framework for Network Co-Simulation (FNCS) is developed by Paicfic Northwest National Laboratory. The FNCS Tutorial can be found  https://github.com/GridOPTICS/FNCS-Tutorial/tree/master/demo-gld-ns3.  This enhanced FNCS tutorial basically explains a way to modify the FNCS application patch program to implement the smart grid applications.
+Framework for Network Co-Simulation (FNCS) is developed by Pacific Northwest National Laboratory. The FNCS Tutorial can be found at  https://github.com/GridOPTICS/FNCS-Tutorial/tree/master/demo-gld-ns3.  This enhanced FNCS tutorial basically explains a way to modify, build, and execute the FNCS application patch program to implement the smart grid applications.
 
 This tutorial explains the steps for building and running FNCS, ns-3, and GridLAB-D. This enhancement is tested on the Linux operating system (Ubuntu 16.04; 64 bits).
 
 
 
 # Software Installation
-The installation process is same as explained in the FNCS Tutorial (https://github.com/GridOPTICS/FNCS-Tutorial/tree/master/demo-gld-ns3). The Following software need to be installed. ZeroMq, FNCS, Xerces, autoconf, automake, libtool, python, ns-3.
+The installation process is same as explained in the FNCS Tutorial (https://github.com/GridOPTICS/FNCS-Tutorial/tree/master/demo-gld-ns3). ZeroMq, FNCS, Xerces, autoconf, automake, libtool, python, ns-3 softwares are need to be installed. 
 
-It is assumed that you will install all the software into $HOME/FNCS_install directory and you are using "bash" shell.
+It is assumed that you will install all the softwares into $HOME/FNCS_install directory and you are using "bash" shell.
 Set the environment variable
 export FNCS_INSTALL="$HOME/FNCS_install"
 
@@ -102,9 +102,9 @@ make install
 ```
 
 # ns-3 Installation
-ns-3 is an event-driven network simulator. There is an FNCS application patch that is added to the ns-3 simulator. This application patch receives FNCS messages from GridLAB-D and injects them into the network. This tuorial explains the modified application patch. This modified patch implements the internal real-time pricing and battery charging algorithm.
-
-use the following steps to install ns-3:
+ns-3 is an event-driven network simulator. There is an FNCS application patch that is added to the ns-3 simulator. This application patch receives FNCS messages from GridLAB-D and injects them into the network. This tuorial explains the modified FNCS application patch. This modified patch implements the internal real-time pricing and battery charging algorithm.
+To see the modifications, read the file fncs-application.cc
+Use the following steps to install ns-3:
 ```
 # we are doing everything from your $HOME directory
 cd $HOME
@@ -112,9 +112,6 @@ cd $HOME
 # download our FNCS version of ns-3 which consists of enhanced FNCS application patch
 git clone https://github.com/BrijendraMNNIT/EnhancedFNCSApplicationPatch.git
 
-
-
-# the "allinone" package contains ns-3 utilities we do not use;
 # we begin our install from the ns-3.26 directory
 cd ns-3.26
 
@@ -132,7 +129,30 @@ CFLAGS="-g -O2" CXXFLAGS="-g -O2" ./waf configure --prefix=$FNCS_INSTALL --with-
 
 # Important Environment Variables
 
-After installing all the softwares, we need to set environment variables. These setting can be done through the FNCS_env.sh file. 
+After installing all the softwares, we need to set environment variables. These setting can be done through the env.sh file which consists of the following
+```
+#!/bin/sh
+
+export FNCS_INSTALL="$HOME/FNCS_install"
+
+# update LD_LIBRARY_PATH
+if test "x$LD_LIBRARY_PATH" = x
+then
+    export LD_LIBRARY_PATH="$FNCS_INSTALL/lib:$FNCS_INSTALL/lib64"
+else
+    export LD_LIBRARY_PATH="$FNCS_INSTALL/lib:$FNCS_INSTALL/lib64:$LD_LIBRARY_PATH"
+fi
+
+# update PATH
+if test "x$PATH" = x
+then
+    export PATH="$FNCS_INSTALL/bin"
+else
+    export PATH="$FNCS_INSTALL/bin:$PATH"
+fi
+
+export FNCS_FATAL=yes
+```
 # Description of How FNCS Application Patch Is Enhanced 
 It would be easy to understand the modification by looking the inheritance diagram and the state chart diagram. The inheritance diagram of the FNCSApplication class is given below. State chart diagram for the two home instances is depicted. 
 Inheritance diagram before modification ![Alt text](inheritencediagram1-eps-converted-to-1.png?raw=true "Inheritance diagram before modification")
@@ -142,27 +162,27 @@ Inheritance diagram after modification ![Alt text](inheritencediagram2-eps-conve
 State chart diagram before modification ![Alt text](state1new.png?raw=true "State chart diagram before modification")
 
 State chart diagram after modification ![Alt text](state2new.png?raw=true "State chart diagram after modification")
-# Model Description
-Set up of the topology ![Alt text](fig5-1.png?raw=true "Simulation topology")
+
 
 # GridLAB-D Model
-The GridLAB-D model has six houses. These houses act o the basis of the internal real-time price and their batteries charging and discharging are controlled by an application program. 
+Set up of the topology ![Alt text](fig5-1.png?raw=true "Simulation topology")
+The GridLAB-D model has six houses. These houses act on the basis of the internal real-time price and their batteries charging and discharging are controlled by an application program. 
 
 # ns-3 Model
 The file firstN.cc creates one more node than the number of houses in the GridLAB-D. This extra node implements the internal real-time pricing algorithm and charging/discharging algorithms
-"This strategy can be used for implementing other mechanism of internal real-time pricing, battery charging algorithms, or some other new applications."
+"This strategy can be used for implementing other mechanisms of internal real-time pricing, battery charging algorithms, or some other new applications."
 
 # Running the Co-Simulation
 ```
 Open three terminals:
       1. At first terminal
-            $ source FNCS_env.sh
+            $ source env.sh
             $ ./compile-ns3.sh firstN.cc  
             $ ./firstN
       2. At the second terminal
-            $ source FNCS_env.sh
+            $ source env.sh
             $ gridlabd ./microgridversion5.glm
       3. At the third terminal
-            $ source FNCS_env.sh
+            $ source env.sh
             $  fncsbroker 2
 ```
