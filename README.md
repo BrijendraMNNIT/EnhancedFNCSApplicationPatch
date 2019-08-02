@@ -67,7 +67,7 @@ cd $HOME
 git clone https://github.com/FNCS/fncs
 
 # change to FNCS directory
-cd FNCS
+cd fncs
 
 # configure, make, and make install
 ./configure --prefix=$FNCS_INSTALL --with-zmq=$FNCS_INSTALL
@@ -200,9 +200,11 @@ The file firstN.cc creates one more node than the number of houses in the GridLA
 
 # Running the Co-Simulation
 ```
-Open three terminals:
+Go into the directory GridLAB-DAndns-3Model which is inside the directory EnhancedFNCSApplicationPatch.
+Open three terminals 
       1. At first terminal
             $ source env.sh
+            $ chmod +x compile-ns3.sh
             $ ./compile-ns3.sh firstN.cc  
             $ ./firstN
       2. At the second terminal
@@ -210,5 +212,6 @@ Open three terminals:
             $ gridlabd ./microgridversion5.glm
       3. At the third terminal
             $ source env.sh
-            $  fncsbroker 2
+            $  fncs_broker 2
 ```
+Here, the simulation set up executes for seven days simulation time. After finishing seven days simulation days it tries for 8th day and  gives message the input file not found. This means that simulation is finished. Now, You can analyse your results.
