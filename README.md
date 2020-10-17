@@ -181,13 +181,13 @@ export FNCS_FATAL=yes
 ```
 # Description of How FNCS Application Patch Is Enhanced 
 It would be easy to understand the modification by looking the inheritance diagram and the state chart diagram. The inheritance diagram of the FNCSApplication class is given below. State chart diagram for the two home instances is depicted. 
-Inheritance diagram before modification ![Alt text](inheritencediagram1-eps-converted-to.pdf?raw=true "Inheritance diagram before modification")
+Inheritance diagram before modification ![Alt text](inheritencediagram1-eps-converted-to.png?raw=true "Inheritance diagram before modification")
 
-Inheritance diagram after modification ![Alt text](inheritencediagram2-eps-converted-to.pdf?raw=true "Inheritance diagram after modification")
+Inheritance diagram after modification ![Alt text](inheritencediagram2-eps-converted-to.png?raw=true "Inheritance diagram after modification")
 
-State chart diagram before modification ![Alt text](state1Redraw-eps-converted-to.pdf?raw=true "State chart diagram before modification")
+State chart diagram before modification ![Alt text](state1Redraw-eps-converted-to.png?raw=true "State chart diagram before modification")
 
-State chart diagram after modification ![Alt text](state2Redraw-eps-converted-to.pdf?raw=true "State chart diagram after modification")
+State chart diagram after modification ![Alt text](state2Redraw-eps-converted-to.png?raw=true "State chart diagram after modification")
 
 
 # GridLAB-D Model
